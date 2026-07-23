@@ -51,7 +51,7 @@ namespace Jagara.Runtime.DungeonGen
             PlaceSpawnAndStairs(grid, rooms, rng, out var playerSpawn, out var stairsDown);
             PlaceEnemiesAndItems(grid, playerSpawn, stairsDown, rng, parameters, out var enemyPositions, out var itemPositions);
 
-            return new FloorData(grid, rooms, playerSpawn, stairsDown, enemyPositions, itemPositions);
+            return new FloorData(grid, rooms, playerSpawn, stairsDown, enemyPositions, itemPositions, seed);
         }
 
         // Spawn sits at a room's center, which PaintRooms guarantees is Floor. The

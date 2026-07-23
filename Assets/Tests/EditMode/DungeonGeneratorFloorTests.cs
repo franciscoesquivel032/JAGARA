@@ -47,6 +47,16 @@ namespace Jagara.Tests.EditMode
         }
 
         [TestCase(1)]
+        [TestCase(42)]
+        [TestCase(99999)]
+        public void GenerateFloor_StoresItsSeedOnFloorData(int seed)
+        {
+            var floor = new DungeonGenerator().GenerateFloor(seed, DefaultParams());
+
+            Assert.AreEqual(seed, floor.Seed);
+        }
+
+        [TestCase(1)]
         [TestCase(2)]
         [TestCase(42)]
         [TestCase(1000)]
