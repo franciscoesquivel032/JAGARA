@@ -1,5 +1,6 @@
 ﻿<Solution>
   <Project Path="Jagara.Runtime.csproj" />
   <Project Path="Jagara.Tests.EditMode.csproj" />
+  <Project Path="Jagara.Tests.PlayMode.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
 </Solution>

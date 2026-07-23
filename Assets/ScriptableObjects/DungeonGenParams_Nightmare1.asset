@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Data.DungeonGenerationParamsSO
   gridWidth: 50
   gridHeight: 50
-  minRoomCount: 5
-  maxRoomCount: 10
+  minRoomCount: 4
+  maxRoomCount: 8
   minRoomWidth: 4
   maxRoomWidth: 8
   minRoomHeight: 4

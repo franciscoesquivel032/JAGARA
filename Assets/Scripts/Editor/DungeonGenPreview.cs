@@ -10,6 +10,11 @@ namespace Jagara.Editor.DungeonGen
     {
         private const string ParamsAssetPath = "Assets/ScriptableObjects/DungeonGenParams_Nightmare1.asset";
 
+        // Reproducibility hook for tooling (e.g. MCP): when set, the next call to
+        // Generate Preview Floor In Scene uses this seed instead of a random one, then
+        // clears itself so manual menu clicks keep the normal random-seed behavior.
+        public static int? OverrideSeed;
+
         [MenuItem("Tools/Jāgara/Preview Dungeon Floor")]
         private static void PreviewDungeonFloor()
         {
@@ -44,7 +49,8 @@ namespace Jagara.Editor.DungeonGen
                 return;
             }
 
-            int seed = new System.Random().Next();
+            int seed = OverrideSeed ?? new System.Random().Next();
+            OverrideSeed = null;
             var floor = new DungeonGenerator().GenerateFloor(seed, paramsSO.ToParams());
             instantiator.InstantiateFloor(floor);
 
