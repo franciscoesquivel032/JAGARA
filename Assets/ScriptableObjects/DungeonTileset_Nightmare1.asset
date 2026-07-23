@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5034ec88ade03694493cf89732484715, type: 3}
+  m_Name: DungeonTileset_Nightmare1
+  m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Data.DungeonTilesetSO
+  wallFill: {fileID: 11400000, guid: 2b6f7695da1034746afd3ee523227afa, type: 2}
+  wallEdgeN: {fileID: 11400000, guid: 631f8739739f92c4985def11b1d06afe, type: 2}
+  wallEdgeS: {fileID: 11400000, guid: 8b2b1390a5a7b304aa87c3a9ec73b796, type: 2}
+  wallEdgeE: {fileID: 11400000, guid: 84bb34fd6bc38bb4fb04790429b6d314, type: 2}
+  wallEdgeW: {fileID: 11400000, guid: c4bd9e9054533484da73f801f4d5ca48, type: 2}
+  wallOuterNE: {fileID: 11400000, guid: e9973b416b94de44a870dbe8cd4ffec8, type: 2}
+  wallOuterNW: {fileID: 11400000, guid: 35cdd6fa78de7eb4f8b04512f3ac4bb0, type: 2}
+  wallOuterSE: {fileID: 11400000, guid: 65aa1984231fc134095da7b0c689f642, type: 2}
+  wallOuterSW: {fileID: 11400000, guid: 94077e35fb0727e47b2af429964affba, type: 2}
+  wallInnerNE: {fileID: 11400000, guid: a6ab91a209e05de4a8c2a3a44a2728fc, type: 2}
+  wallInnerNW: {fileID: 11400000, guid: 70afb19e4c31a7541bc93421b2bef9d3, type: 2}
+  wallInnerSE: {fileID: 11400000, guid: 9e95815f03ae83346bace76a8ad0e6ce, type: 2}
+  wallInnerSW: {fileID: 11400000, guid: 34d3b9953109e0240be04330f4ce2fe9, type: 2}
+  floorPrimary: {fileID: 11400000, guid: d9d6915f969c73b4a955303c79581ae9, type: 2}
+  floorSecondary: {fileID: 11400000, guid: 61215ad2a7570d74cae00854ac8a7315, type: 2}
+  floorTertiary: {fileID: 11400000, guid: 50f026810e4dfbd41ae032e1fccf03ae, type: 2}
+  primaryWeight: 75
+  secondaryWeight: 20
+  tertiaryWeight: 5
+  stairsDownTile: {fileID: 11400000, guid: fd9b0be5f9026304bb91e73646b8897b, type: 2}

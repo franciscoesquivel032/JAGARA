@@ -1,3 +1,4 @@
+using Jagara.Runtime.Data;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
@@ -9,11 +10,8 @@ namespace Jagara.Runtime.DungeonGen
 
         [SerializeField] private Tilemap tilemap;
 
-        [Header("Tile Assets (TileType -> TileBase)")]
-        [SerializeField] private TileBase wallTile;
-        [SerializeField] private TileBase floorTile;
-        [SerializeField] private TileBase corridorTile;
-        [SerializeField] private TileBase stairsDownTile;
+        [Header("Visual Tileset")]
+        [SerializeField] private DungeonTilesetSO tileset;
 
         [Header("Marker Prefabs")]
         [SerializeField] private GameObject playerSpawnMarkerPrefab;
@@ -25,6 +23,12 @@ namespace Jagara.Runtime.DungeonGen
             if (tilemap == null)
             {
                 Debug.LogError("FloorInstantiator: Tilemap reference is not assigned.");
+                return;
+            }
+
+            if (tileset == null)
+            {
+                Debug.LogError("FloorInstantiator: DungeonTilesetSO reference is not assigned.");
                 return;
             }
 
@@ -53,7 +57,7 @@ namespace Jagara.Runtime.DungeonGen
                     // in-scene layout is vertically mirrored relative to FloorData.ToAsciiArt()'s
                     // printed text (row 0 is top-of-text but bottom-of-world, since +Y is up) -
                     // that mismatch is cosmetic only and not a bug.
-                    tilemap.SetTile(new Vector3Int(x, y, 0), GetTileBase(floor.Grid[x, y]));
+                    tilemap.SetTile(new Vector3Int(x, y, 0), GetTileBase(floor, x, y));
                 }
             }
         }
@@ -90,21 +94,25 @@ namespace Jagara.Runtime.DungeonGen
             Instantiate(prefab, worldPos, Quaternion.identity, parent);
         }
 
-        private TileBase GetTileBase(TileType tileType)
+        private TileBase GetTileBase(FloorData floor, int x, int y)
         {
+            TileType tileType = floor.Grid[x, y];
             switch (tileType)
             {
                 case TileType.Wall:
-                    return wallTile;
+                    return tileset.GetWallTile(TileVisualResolver.ResolveWallShape(floor.Grid, x, y));
                 case TileType.Floor:
-                    return floorTile;
                 case TileType.Corridor:
-                    return corridorTile;
+                    // Corridors intentionally share the room floor pool (PMD-style
+                    // unified ground); the data model still distinguishes them.
+                    return tileset.GetFloorVariantTile(TileVisualResolver.ResolveFloorVariant(
+                        floor.Seed, x, y,
+                        tileset.PrimaryWeight, tileset.SecondaryWeight, tileset.TertiaryWeight));
                 case TileType.StairsDown:
-                    return stairsDownTile;
+                    return tileset.StairsDownTile;
                 default:
-                    Debug.LogWarning($"FloorInstantiator: unhandled TileType {tileType}; defaulting to wall tile.");
-                    return wallTile;
+                    Debug.LogWarning($"FloorInstantiator: unhandled TileType {tileType}; defaulting to wall fill tile.");
+                    return tileset.GetWallTile(WallShape.Fill);
             }
         }
 

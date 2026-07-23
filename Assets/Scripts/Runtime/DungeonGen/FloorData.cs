@@ -13,13 +13,21 @@ namespace Jagara.Runtime.DungeonGen
         public List<Vector2Int> EnemySpawnPositions { get; }
         public List<Vector2Int> ItemSpawnPositions { get; }
 
+        /// <summary>
+        /// The seed this floor was generated from. Not consumed by generation
+        /// itself - carried along so rendering (e.g. floor tile variants) can be
+        /// deterministic per floor, and as repro metadata.
+        /// </summary>
+        public int Seed { get; }
+
         public FloorData(
             TileType[,] grid,
             List<RoomData> rooms,
             Vector2Int? playerSpawn = null,
             Vector2Int? stairsDownPosition = null,
             List<Vector2Int> enemySpawnPositions = null,
-            List<Vector2Int> itemSpawnPositions = null)
+            List<Vector2Int> itemSpawnPositions = null,
+            int seed = 0)
         {
             Grid = grid;
             Rooms = rooms;
@@ -27,6 +35,7 @@ namespace Jagara.Runtime.DungeonGen
             StairsDownPosition = stairsDownPosition;
             EnemySpawnPositions = enemySpawnPositions ?? new List<Vector2Int>();
             ItemSpawnPositions = itemSpawnPositions ?? new List<Vector2Int>();
+            Seed = seed;
         }
 
         /// <summary>

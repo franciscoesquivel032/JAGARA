@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="9" result="Passed" total="9" passed="9" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0,0513847">
+  <test-suite type="TestSuite" id="1000" name="My project" fullname="My project" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.051385" total="9" passed="9" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1012" name="Jagara.Tests.EditMode.dll" fullname="D:/UnityProjects/My project/Library/ScriptAssemblies/Jagara.Tests.EditMode.dll" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.041870" total="9" passed="9" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="5556" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1013" name="Jagara" fullname="Jagara" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.041270" total="9" passed="9" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1014" name="Tests" fullname="Jagara.Tests" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.041038" total="9" passed="9" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1015" name="EditMode" fullname="Jagara.Tests.EditMode" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.040756" total="9" passed="9" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1001" name="DungeonGeneratorRoomTests" fullname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests" classname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.039712" total="9" passed="9" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1003" name="GenerateRooms_AllRoomsWithinGridBounds" fullname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests.GenerateRooms_AllRoomsWithinGridBounds" methodname="GenerateRooms_AllRoomsWithinGridBounds" classname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests" runstate="Runnable" seed="51349507" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.014798" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1002" name="GenerateRooms_NoTwoRoomsOverlap" fullname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests.GenerateRooms_NoTwoRoomsOverlap" methodname="GenerateRooms_NoTwoRoomsOverlap" classname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests" runstate="Runnable" seed="1687574866" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.000851" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-suite type="ParameterizedMethod" id="1011" name="GenerateRooms_RoomCountWithinConfiguredRange" fullname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests.GenerateRooms_RoomCountWithinConfiguredRange" classname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.003013" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1005" name="GenerateRooms_RoomCountWithinConfiguredRange(1)" fullname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests.GenerateRooms_RoomCountWithinConfiguredRange(1)" methodname="GenerateRooms_RoomCountWithinConfiguredRange" classname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests" runstate="Runnable" seed="1095061319" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.000294" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1006" name="GenerateRooms_RoomCountWithinConfiguredRange(2)" fullname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests.GenerateRooms_RoomCountWithinConfiguredRange(2)" methodname="GenerateRooms_RoomCountWithinConfiguredRange" classname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests" runstate="Runnable" seed="583715535" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.000060" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1007" name="GenerateRooms_RoomCountWithinConfiguredRange(42)" fullname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests.GenerateRooms_RoomCountWithinConfiguredRange(42)" methodname="GenerateRooms_RoomCountWithinConfiguredRange" classname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests" runstate="Runnable" seed="1132870569" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.000052" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1008" name="GenerateRooms_RoomCountWithinConfiguredRange(1000)" fullname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests.GenerateRooms_RoomCountWithinConfiguredRange(1000)" methodname="GenerateRooms_RoomCountWithinConfiguredRange" classname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests" runstate="Runnable" seed="519815368" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.000049" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1009" name="GenerateRooms_RoomCountWithinConfiguredRange(7777)" fullname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests.GenerateRooms_RoomCountWithinConfiguredRange(7777)" methodname="GenerateRooms_RoomCountWithinConfiguredRange" classname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests" runstate="Runnable" seed="368589744" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.000050" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1010" name="GenerateRooms_RoomCountWithinConfiguredRange(99999)" fullname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests.GenerateRooms_RoomCountWithinConfiguredRange(99999)" methodname="GenerateRooms_RoomCountWithinConfiguredRange" classname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests" runstate="Runnable" seed="2058589648" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.000048" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-case id="1004" name="GenerateRooms_SameSeedProducesIdenticalResults" fullname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests.GenerateRooms_SameSeedProducesIdenticalResults" methodname="GenerateRooms_SameSeedProducesIdenticalResults" classname="Jagara.Tests.EditMode.DungeonGeneratorRoomTests" runstate="Runnable" seed="669480505" result="Passed" start-time="2026-07-23 11:35:43Z" end-time="2026-07-23 11:35:43Z" duration="0.003871" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[<b><color=#2EA3FF>MCP-FOR-UNITY</color></b>: [TestRunnerNoThrottle] Restored Interaction Mode after test run.
+Saving results to: C:/Users/Francisco Esquivel/AppData/LocalLow/DefaultCompany/My project\TestResults.xml
+]]></output>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>
