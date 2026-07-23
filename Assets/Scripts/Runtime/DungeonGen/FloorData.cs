@@ -10,18 +10,30 @@ namespace Jagara.Runtime.DungeonGen
         public List<RoomData> Rooms { get; }
         public Vector2Int? PlayerSpawn { get; }
         public Vector2Int? StairsDownPosition { get; }
+        public List<Vector2Int> EnemySpawnPositions { get; }
+        public List<Vector2Int> ItemSpawnPositions { get; }
 
-        public FloorData(TileType[,] grid, List<RoomData> rooms, Vector2Int? playerSpawn = null, Vector2Int? stairsDownPosition = null)
+        public FloorData(
+            TileType[,] grid,
+            List<RoomData> rooms,
+            Vector2Int? playerSpawn = null,
+            Vector2Int? stairsDownPosition = null,
+            List<Vector2Int> enemySpawnPositions = null,
+            List<Vector2Int> itemSpawnPositions = null)
         {
             Grid = grid;
             Rooms = rooms;
             PlayerSpawn = playerSpawn;
             StairsDownPosition = stairsDownPosition;
+            EnemySpawnPositions = enemySpawnPositions ?? new List<Vector2Int>();
+            ItemSpawnPositions = itemSpawnPositions ?? new List<Vector2Int>();
         }
 
         /// <summary>
         /// Renders the tile grid as text for quick visual inspection outside Play Mode:
-        /// '#' Wall, '.' Floor, ',' Corridor, '>' StairsDown, '@' PlayerSpawn.
+        /// '#' Wall, '.' Floor, ',' Corridor, '>' StairsDown, '@' PlayerSpawn, 'e' Enemy, 'i' Item.
+        /// Spawn/staircase always take rendering priority over enemy/item on the same tile,
+        /// even though placement rules should make that overlap impossible in practice.
         /// One line per row (y), left-to-right by x.
         /// </summary>
         public string ToAsciiArt()
@@ -58,7 +70,30 @@ namespace Jagara.Runtime.DungeonGen
                 return '>';
             }
 
+            if (ContainsPosition(EnemySpawnPositions, x, y))
+            {
+                return 'e';
+            }
+
+            if (ContainsPosition(ItemSpawnPositions, x, y))
+            {
+                return 'i';
+            }
+
             return ToChar(Grid[x, y]);
+        }
+
+        private static bool ContainsPosition(List<Vector2Int> positions, int x, int y)
+        {
+            for (int i = 0; i < positions.Count; i++)
+            {
+                if (positions[i].x == x && positions[i].y == y)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static char ToChar(TileType tile)

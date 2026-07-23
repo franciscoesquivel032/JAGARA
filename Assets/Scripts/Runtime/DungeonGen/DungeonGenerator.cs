@@ -49,8 +49,9 @@ namespace Jagara.Runtime.DungeonGen
             }
 
             PlaceSpawnAndStairs(grid, rooms, rng, out var playerSpawn, out var stairsDown);
+            PlaceEnemiesAndItems(grid, playerSpawn, stairsDown, rng, parameters, out var enemyPositions, out var itemPositions);
 
-            return new FloorData(grid, rooms, playerSpawn, stairsDown);
+            return new FloorData(grid, rooms, playerSpawn, stairsDown, enemyPositions, itemPositions);
         }
 
         // Spawn sits at a room's center, which PaintRooms guarantees is Floor. The
@@ -81,6 +82,71 @@ namespace Jagara.Runtime.DungeonGen
             }
 
             grid[stairsDown.x, stairsDown.y] = TileType.StairsDown;
+        }
+
+        // Draws enemy and item positions from the same shuffled pool of eligible room
+        // tiles (Floor tiles, excluding spawn/stairs) so the two sets can never collide
+        // with each other or with spawn/stairs by construction. If the room area can't
+        // fit the requested counts (pathologically small floors), placement is capped to
+        // whatever eligible tiles remain rather than throwing.
+        private static void PlaceEnemiesAndItems(
+            TileType[,] grid,
+            Vector2Int playerSpawn,
+            Vector2Int stairsDown,
+            Random rng,
+            DungeonGenerationParams parameters,
+            out List<Vector2Int> enemyPositions,
+            out List<Vector2Int> itemPositions)
+        {
+            int enemyCount = rng.Next(parameters.MinEnemyCount, parameters.MaxEnemyCount + 1);
+            int itemCount = rng.Next(parameters.MinItemCount, parameters.MaxItemCount + 1);
+
+            var eligible = CollectEligibleTiles(grid, playerSpawn, stairsDown);
+            ShuffleInPlace(eligible, rng);
+
+            int totalAvailable = Math.Min(enemyCount + itemCount, eligible.Count);
+            int enemiesToPlace = Math.Min(enemyCount, totalAvailable);
+            int itemsToPlace = totalAvailable - enemiesToPlace;
+
+            enemyPositions = eligible.GetRange(0, enemiesToPlace);
+            itemPositions = eligible.GetRange(enemiesToPlace, itemsToPlace);
+        }
+
+        private static List<Vector2Int> CollectEligibleTiles(TileType[,] grid, Vector2Int playerSpawn, Vector2Int stairsDown)
+        {
+            int width = grid.GetLength(0);
+            int height = grid.GetLength(1);
+            var eligible = new List<Vector2Int>();
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    if (grid[x, y] != TileType.Floor)
+                    {
+                        continue;
+                    }
+
+                    var pos = new Vector2Int(x, y);
+                    if (pos == playerSpawn || pos == stairsDown)
+                    {
+                        continue;
+                    }
+
+                    eligible.Add(pos);
+                }
+            }
+
+            return eligible;
+        }
+
+        private static void ShuffleInPlace(List<Vector2Int> list, Random rng)
+        {
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(i + 1);
+                (list[i], list[j]) = (list[j], list[i]);
+            }
         }
 
         // Prim's algorithm over room centers using squared Euclidean distance (avoids
@@ -272,6 +338,12 @@ namespace Jagara.Runtime.DungeonGen
 
             if (p.MaxRoomWidth > p.GridWidth || p.MaxRoomHeight > p.GridHeight)
                 throw new ArgumentException("Room size exceeds grid bounds.", nameof(p));
+
+            if (p.MinEnemyCount < 0 || p.MaxEnemyCount < p.MinEnemyCount)
+                throw new ArgumentException("Invalid enemy count range.", nameof(p));
+
+            if (p.MinItemCount < 0 || p.MaxItemCount < p.MinItemCount)
+                throw new ArgumentException("Invalid item count range.", nameof(p));
         }
     }
 }
