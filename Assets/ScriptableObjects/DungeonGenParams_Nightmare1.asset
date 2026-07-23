@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e469ae856ffd6184e96ff2b29e70ab9e, type: 3}
+  m_Name: DungeonGenParams_Nightmare1
+  m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Data.DungeonGenerationParamsSO
+  gridWidth: 50
+  gridHeight: 50
+  minRoomCount: 5
+  maxRoomCount: 10
+  minRoomWidth: 4
+  maxRoomWidth: 8
+  minRoomHeight: 4
+  maxRoomHeight: 8
+  minEnemyCount: 5
+  maxEnemyCount: 8
+  minItemCount: 4
+  maxItemCount: 6
