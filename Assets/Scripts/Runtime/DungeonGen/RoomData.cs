@@ -17,6 +17,8 @@ namespace Jagara.Runtime.DungeonGen
 
         public int Right => X + Width;
         public int Bottom => Y + Height;
+        public int CenterX => X + Width / 2;
+        public int CenterY => Y + Height / 2;
 
         // Edge-touching rooms (zero-area intersection) are not considered overlapping.
         public bool Overlaps(RoomData other) =>
