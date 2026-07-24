@@ -9,6 +9,7 @@ namespace Jagara.Runtime.DungeonGen
         private const string SpawnedEntitiesRootName = "SpawnedEntities";
 
         [SerializeField] private Tilemap tilemap;
+        [SerializeField] private Tilemap decorationTilemap;
 
         [Header("Visual Tileset")]
         [SerializeField] private DungeonTilesetSO tileset;
@@ -17,6 +18,8 @@ namespace Jagara.Runtime.DungeonGen
         [SerializeField] private GameObject playerSpawnMarkerPrefab;
         [SerializeField] private GameObject enemyMarkerPrefab;
         [SerializeField] private GameObject itemMarkerPrefab;
+
+        public Tilemap Tilemap => tilemap;
 
         public void InstantiateFloor(FloorData floor)
         {
@@ -47,6 +50,7 @@ namespace Jagara.Runtime.DungeonGen
         {
             int width = floor.Grid.GetLength(0);
             int height = floor.Grid.GetLength(1);
+            int[] decorationWeights = BuildDecorationWeights();
 
             for (int x = 0; x < width; x++)
             {
@@ -58,7 +62,63 @@ namespace Jagara.Runtime.DungeonGen
                     // printed text (row 0 is top-of-text but bottom-of-world, since +Y is up) -
                     // that mismatch is cosmetic only and not a bug.
                     tilemap.SetTile(new Vector3Int(x, y, 0), GetTileBase(floor, x, y));
+                    PaintDecoration(floor, x, y, decorationWeights);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Weights array built once per floor so the per-cell decoration roll
+        /// allocates nothing. Null when decorations are unconfigured or unusable
+        /// (also null - with an error - when configured but the tilemap is missing).
+        /// </summary>
+        private int[] BuildDecorationWeights()
+        {
+            var decorations = tileset.Decorations;
+            if (decorations.Count == 0)
+            {
+                return null;
+            }
+
+            if (decorationTilemap == null)
+            {
+                Debug.LogError("FloorInstantiator: tileset has decorations but decorationTilemap is not assigned.");
+                return null;
+            }
+
+            var weights = new int[decorations.Count];
+            for (int i = 0; i < decorations.Count; i++)
+            {
+                weights[i] = decorations[i].weight;
+            }
+
+            return weights;
+        }
+
+        private void PaintDecoration(FloorData floor, int x, int y, int[] weights)
+        {
+            if (weights == null)
+            {
+                return;
+            }
+
+            TileType tileType = floor.Grid[x, y];
+            if (tileType != TileType.Floor && tileType != TileType.Corridor)
+            {
+                return;
+            }
+
+            int index = TileVisualResolver.ResolveDecorationIndex(
+                floor.Seed, x, y, tileset.DecorationDensityPercent, weights);
+            if (index < 0)
+            {
+                return;
+            }
+
+            TileBase tile = tileset.Decorations[index].tile;
+            if (tile != null)
+            {
+                decorationTilemap.SetTile(new Vector3Int(x, y, 0), tile);
             }
         }
 
@@ -100,7 +160,16 @@ namespace Jagara.Runtime.DungeonGen
             switch (tileType)
             {
                 case TileType.Wall:
-                    return tileset.GetWallTile(TileVisualResolver.ResolveWallShape(floor.Grid, x, y));
+                    WallShape shape = TileVisualResolver.ResolveWallShape(floor.Grid, x, y);
+                    if (shape == WallShape.Fill)
+                    {
+                        return tileset.GetWallFillVariantTile(TileVisualResolver.ResolveWallFillVariant(
+                            floor.Seed, x, y,
+                            tileset.WallFillWeightA, tileset.WallFillWeightB,
+                            tileset.WallFillWeightC, tileset.WallFillWeightD));
+                    }
+
+                    return tileset.GetWallTile(shape);
                 case TileType.Floor:
                 case TileType.Corridor:
                     // Corridors intentionally share the room floor pool (PMD-style
@@ -119,6 +188,11 @@ namespace Jagara.Runtime.DungeonGen
         private void ClearPreviousFloor()
         {
             tilemap.ClearAllTiles();
+
+            if (decorationTilemap != null)
+            {
+                decorationTilemap.ClearAllTiles();
+            }
 
             // Not a per-frame call - only runs when InstantiateFloor is invoked, so this
             // Find is fine to leave uncached.
