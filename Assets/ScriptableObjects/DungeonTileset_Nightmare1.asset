@@ -13,6 +13,13 @@ MonoBehaviour:
   m_Name: DungeonTileset_Nightmare1
   m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Data.DungeonTilesetSO
   wallFill: {fileID: 11400000, guid: 2b6f7695da1034746afd3ee523227afa, type: 2}
+  wallFillB: {fileID: 11400000, guid: 96f759ff2ec1547408f431cd94fd95c1, type: 2}
+  wallFillC: {fileID: 11400000, guid: 86befedb63393b94999c6a5f993ddf40, type: 2}
+  wallFillD: {fileID: 11400000, guid: 7be53dcde56308444833b48d74bc9c9b, type: 2}
+  wallFillWeightA: 30
+  wallFillWeightB: 20
+  wallFillWeightC: 20
+  wallFillWeightD: 30
   wallEdgeN: {fileID: 11400000, guid: 631f8739739f92c4985def11b1d06afe, type: 2}
   wallEdgeS: {fileID: 11400000, guid: 8b2b1390a5a7b304aa87c3a9ec73b796, type: 2}
   wallEdgeE: {fileID: 11400000, guid: 84bb34fd6bc38bb4fb04790429b6d314, type: 2}
@@ -31,4 +38,14 @@ MonoBehaviour:
   primaryWeight: 75
   secondaryWeight: 20
   tertiaryWeight: 5
+  decorations:
+  - tile: {fileID: 11400000, guid: 27ffbc59887eee34f9ef0e7d78d6f822, type: 2}
+    weight: 25
+  - tile: {fileID: 11400000, guid: 8b6715254528bb7449f075ff7c3cb8cc, type: 2}
+    weight: 25
+  - tile: {fileID: 11400000, guid: c9c44edc4440e4947bc36f10670076d3, type: 2}
+    weight: 25
+  - tile: {fileID: 11400000, guid: fd462e612558d114f9036f27e30af8ce, type: 2}
+    weight: 25
+  decorationDensityPercent: 5
   stairsDownTile: {fileID: 11400000, guid: fd9b0be5f9026304bb91e73646b8897b, type: 2}
