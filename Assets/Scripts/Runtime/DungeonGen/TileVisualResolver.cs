@@ -13,6 +13,8 @@ namespace Jagara.Runtime.DungeonGen
         private const int South = 4;
         private const int West = 8;
 
+        private const uint WallFillSalt = 0x51ED270Bu;
+
         /// <summary>
         /// Resolves the visual shape of the wall cell at (x, y). A neighbor is
         /// "open" when it is walkable ground (Floor/Corridor/StairsDown);
@@ -108,14 +110,7 @@ namespace Jagara.Runtime.DungeonGen
 
             unchecked
             {
-                uint h = (uint)floorSeed;
-                h ^= (uint)x * 0x9E3779B1u;
-                h = (h ^ (h >> 16)) * 0x85EBCA6Bu;
-                h ^= (uint)y * 0xC2B2AE35u;
-                h = (h ^ (h >> 13)) * 0x27D4EB2Fu;
-                h ^= h >> 16;
-
-                int roll = (int)(h % (uint)total);
+                int roll = (int)(Hash(floorSeed, x, y, 0u) % (uint)total);
                 if (roll < primaryWeight)
                 {
                     return 0;
@@ -125,7 +120,63 @@ namespace Jagara.Runtime.DungeonGen
             }
         }
 
-        private static bool IsOpen(TileType[,] grid, int x, int y)
+        /// <summary>
+        /// Deterministically picks a wall fill variant (0 = A ... 3 = D) for the
+        /// cell at (x, y), weighted by the four integer weights. A zero weight
+        /// makes that variant unreachable; a non-positive total degenerates to A.
+        /// Salted so the pattern is independent of the floor variant pattern.
+        /// </summary>
+        public static int ResolveWallFillVariant(int floorSeed, int x, int y,
+            int weightA, int weightB, int weightC, int weightD)
+        {
+            int total = weightA + weightB + weightC + weightD;
+            if (total <= 0)
+            {
+                return 0;
+            }
+
+            unchecked
+            {
+                int roll = (int)(Hash(floorSeed, x, y, WallFillSalt) % (uint)total);
+                if (roll < weightA)
+                {
+                    return 0;
+                }
+
+                if (roll < weightA + weightB)
+                {
+                    return 1;
+                }
+
+                return roll < weightA + weightB + weightC ? 2 : 3;
+            }
+        }
+
+        /// <summary>
+        /// Shared cell hash. Salt 0 reproduces the original ResolveFloorVariant
+        /// sequence exactly; other consumers must pass a distinct salt so their
+        /// patterns don't correlate with the floor pattern.
+        /// </summary>
+        private static uint Hash(int seed, int x, int y, uint salt)
+        {
+            unchecked
+            {
+                uint h = (uint)seed ^ salt;
+                h ^= (uint)x * 0x9E3779B1u;
+                h = (h ^ (h >> 16)) * 0x85EBCA6Bu;
+                h ^= (uint)y * 0xC2B2AE35u;
+                h = (h ^ (h >> 13)) * 0x27D4EB2Fu;
+                h ^= h >> 16;
+                return h;
+            }
+        }
+
+        /// <summary>
+        /// True when (x, y) is walkable ground (Floor/Corridor/StairsDown).
+        /// Out-of-bounds counts as closed. Shared with grid movement code so
+        /// walkability can never disagree between rendering and gameplay.
+        /// </summary>
+        public static bool IsOpen(TileType[,] grid, int x, int y)
         {
             if (x < 0 || y < 0 || x >= grid.GetLength(0) || y >= grid.GetLength(1))
             {
