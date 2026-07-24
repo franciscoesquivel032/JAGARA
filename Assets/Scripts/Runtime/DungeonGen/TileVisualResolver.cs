@@ -14,6 +14,7 @@ namespace Jagara.Runtime.DungeonGen
         private const int West = 8;
 
         private const uint WallFillSalt = 0x51ED270Bu;
+        private const uint DecorationSalt = 0xB5297A4Du;
 
         /// <summary>
         /// Resolves the visual shape of the wall cell at (x, y). A neighbor is
@@ -149,6 +150,56 @@ namespace Jagara.Runtime.DungeonGen
                 }
 
                 return roll < weightA + weightB + weightC ? 2 : 3;
+            }
+        }
+
+        /// <summary>
+        /// Decides whether the ground cell at (x, y) gets a decoration and which
+        /// one: -1 for none, else a weighted index into <paramref name="weights"/>.
+        /// One hash per cell: the low bits (mod 100) roll against densityPercent,
+        /// the remaining bits pick the weighted entry, so density and choice stay
+        /// independent. Null/empty weights, a non-positive total, or density &lt;= 0
+        /// never decorate; density &gt;= 100 always does. The caller is expected to
+        /// build the weights array once per floor, not per cell.
+        /// </summary>
+        public static int ResolveDecorationIndex(int floorSeed, int x, int y,
+            int densityPercent, int[] weights)
+        {
+            if (weights == null || weights.Length == 0 || densityPercent <= 0)
+            {
+                return -1;
+            }
+
+            int total = 0;
+            for (int i = 0; i < weights.Length; i++)
+            {
+                total += weights[i];
+            }
+
+            if (total <= 0)
+            {
+                return -1;
+            }
+
+            unchecked
+            {
+                uint h = Hash(floorSeed, x, y, DecorationSalt);
+                if ((int)(h % 100u) >= densityPercent)
+                {
+                    return -1;
+                }
+
+                int roll = (int)((h / 100u) % (uint)total);
+                for (int i = 0; i < weights.Length; i++)
+                {
+                    roll -= weights[i];
+                    if (roll < 0)
+                    {
+                        return i;
+                    }
+                }
+
+                return weights.Length - 1; // unreachable with consistent totals
             }
         }
 
