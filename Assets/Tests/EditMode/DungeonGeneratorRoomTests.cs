@@ -48,6 +48,30 @@ namespace Jagara.Tests.EditMode
             }
         }
 
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(42)]
+        [TestCase(1000)]
+        [TestCase(7777)]
+        [TestCase(99999)]
+        public void GenerateRooms_NeverTouchGridEdge(int seed)
+        {
+            // Rooms must leave at least a 1-tile Wall margin on every side so the
+            // instantiated floor always has a bordering wall tile to render against -
+            // a room flush against the grid boundary has no tile beyond the array to
+            // paint a wall into, which clips the tileset art at the map edge.
+            var parameters = DefaultParams();
+            var rooms = new DungeonGenerator().GenerateRooms(seed, parameters);
+
+            foreach (var room in rooms)
+            {
+                Assert.Greater(room.X, 0, $"Room {room} touches the west edge.");
+                Assert.Greater(room.Y, 0, $"Room {room} touches the south edge.");
+                Assert.Less(room.Right, parameters.GridWidth, $"Room {room} touches the east edge.");
+                Assert.Less(room.Bottom, parameters.GridHeight, $"Room {room} touches the north edge.");
+            }
+        }
+
         [Test]
         public void GenerateRooms_SameSeedProducesIdenticalResults()
         {

@@ -22,5 +22,5 @@ MonoBehaviour:
   maxRoomHeight: 8
   minEnemyCount: 5
   maxEnemyCount: 8
-  minItemCount: 4
-  maxItemCount: 6
+  minItemCount: 2
+  maxItemCount: 8

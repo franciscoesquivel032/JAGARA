@@ -73,11 +73,11 @@ MonoBehaviour:
   m_ShadowVolumeIntensityEnabled: 0
   m_ShadowVolumeIntensity: 0.75
   m_LocalBounds:
-    m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 0, y: 0, z: 0}
+    m_Center: {x: 0, y: -0.00000011920929, z: 0}
+    m_Extent: {x: 0.9985302, y: 0.99853027, z: 0}
   m_PointLightInnerAngle: 360
   m_PointLightOuterAngle: 360
-  m_PointLightInnerRadius: 0.5
+  m_PointLightInnerRadius: 0.95
   m_PointLightOuterRadius: 3.5
   m_ShapeLightParametricSides: 5
   m_ShapeLightParametricAngleOffset: 0
@@ -119,11 +119,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Gameplay.FlickeringLight2D
   targetLight: {fileID: 0}
-  baseIntensity: 1.2
-  intensityAmplitude: 0.3
+  baseIntensity: 1.5
+  intensityAmplitude: 1
   baseOuterRadius: 3.5
   radiusAmplitude: 0.35
-  noiseSpeed: 1.5
+  noiseSpeed: 1.2
 --- !u!1 &8630132123239652941
 GameObject:
   m_ObjectHideFlags: 0
@@ -206,7 +206,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 1
+  m_SortingOrder: 2
   m_MaskInteraction: 0
   m_Sprite: {fileID: -615936234, guid: 839668a2e21371f47b9acf0dbe001f3f, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
