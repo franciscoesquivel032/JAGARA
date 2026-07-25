@@ -21,7 +21,12 @@ namespace Jagara.Runtime.Gameplay
 
         public Vector2Int CurrentCell { get; private set; }
         public bool IsMoving { get; private set; }
+
+        /// <summary>Raw (un-eased) progress of the current tween, 0..1.</summary>
+        public float MoveProgress { get; private set; }
+
         public event Action OnMoveCompleted = delegate { };
+        public event Action<Vector2Int> OnMoveStarted = delegate { };
 
         public void Initialize(FloorData floorData, Tilemap tilemapRef, Vector2Int startCell)
         {
@@ -45,6 +50,8 @@ namespace Jagara.Runtime.Gameplay
             }
 
             CurrentCell = target;
+            MoveProgress = 0f;
+            OnMoveStarted(direction);
             StartCoroutine(MoveRoutine(tilemap.GetCellCenterWorld(new Vector3Int(target.x, target.y, 0))));
             return true;
         }
@@ -59,12 +66,14 @@ namespace Jagara.Runtime.Gameplay
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / moveDuration);
+                MoveProgress = t;
                 float eased = t * t * (3f - 2f * t);
                 transform.position = Vector3.Lerp(startPos, targetWorldPos, eased);
                 yield return null;
             }
 
             transform.position = targetWorldPos;
+            MoveProgress = 1f;
             IsMoving = false;
             OnMoveCompleted();
         }
