@@ -770,6 +770,185 @@ git add Assets/Art/Materials/EntityFactionOutline.mat
 git commit -m "fix: tune outline/boost defaults after visual check"
 ```
 
+**Outcome (2026-07-27):** Step 2's manual check found the hard-edge outline rejected outright by the user ("todo el enfoque no funciona") as too harsh on the pixel art. A follow-up round of visual mockups (soft glow / ground marker / corner badge / soft sprite-wide tint) was reviewed; **soft glow, very subtle, no sprite-wide saturation/brightness boost** was chosen. See the spec's "Revision 2026-07-27" section and Task 7 below.
+
+---
+
+### Task 7: Soften the outline into a subtle glow
+
+**Files:**
+- Modify (via MCP `manage_shader` update): `Assets/Art/Shaders/EntityFactionOutline.shader`
+- Modify (via MCP `manage_material`): `Assets/Art/Materials/EntityFactionOutline.mat` (new property defaults)
+
+**Interfaces:**
+- No change to `EntityOutline.cs`, the `_OutlineColor` `MaterialPropertyBlock` mechanism, the material's asset path, or prefab wiring (Tasks 4-5) — this task only changes the shader's rendering technique and two material-level tuning defaults. `EntityOutline` keeps writing `_OutlineColor` exactly as before; the shader just renders it as a soft glow instead of a hard ring, and no longer boosts the sprite's own saturation/brightness.
+- Removes shader properties `_Saturation` and `_Brightness` (no longer used — the sprite renders untouched); adds `_GlowIntensity`. `_OutlineWidth` is repurposed from "outline ring width in texels" to "glow radius in texels" (same property name, new meaning, new default).
+
+Per the design spec, no automated test applies to shader code in this project — verification is a clean compile plus manual visual confirmation, same as Task 3 and Task 6.
+
+- [ ] **Step 1: Update the shader via MCP**
+
+```
+mcp__UnityMCP__manage_shader(
+  action="update",
+  name="EntityFactionOutline",
+  path="Assets/Art/Shaders",
+  contents=<the shader source below>
+)
+```
+
+Shader source (replaces the Task 3 version in full):
+
+```hlsl
+Shader "Jagara/EntityFactionOutline"
+{
+    Properties
+    {
+        _MainTex ("Sprite Texture", 2D) = "white" {}
+        _Color ("Tint", Color) = (1, 1, 1, 1)
+        _OutlineColor ("Glow Color", Color) = (1, 1, 1, 1)
+        _OutlineWidth ("Glow Radius (texels)", Range(1, 4)) = 2
+        _GlowIntensity ("Glow Intensity", Range(0, 1)) = 0.3
+    }
+    SubShader
+    {
+        Tags { "RenderType" = "Transparent" "Queue" = "Transparent" "RenderPipeline" = "UniversalPipeline" "IgnoreProjector" = "True" }
+        Blend SrcAlpha OneMinusSrcAlpha
+        ZWrite Off
+        Cull Off
+
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            TEXTURE2D(_MainTex);
+            SAMPLER(sampler_MainTex);
+
+            CBUFFER_START(UnityPerMaterial)
+                float4 _MainTex_ST;
+                float4 _MainTex_TexelSize;
+                half4 _Color;
+                half4 _OutlineColor;
+                float _OutlineWidth;
+                float _GlowIntensity;
+            CBUFFER_END
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float2 uv : TEXCOORD0;
+                float4 color : COLOR;
+            };
+
+            struct Varyings
+            {
+                float4 positionHCS : SV_POSITION;
+                float2 uv : TEXCOORD0;
+                float4 color : COLOR;
+            };
+
+            Varyings vert(Attributes IN)
+            {
+                Varyings OUT;
+                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.uv = TRANSFORM_TEX(IN.uv, _MainTex);
+                OUT.color = IN.color * _Color;
+                return OUT;
+            }
+
+            half4 frag(Varyings IN) : SV_Target
+            {
+                half4 baseSample = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv) * IN.color;
+
+                if (baseSample.a > 0.001)
+                {
+                    return baseSample;
+                }
+
+                static const int MAX_RINGS = 4;
+                float2 texel = _MainTex_TexelSize.xy;
+                half glow = 0;
+
+                [unroll]
+                for (int r = 1; r <= MAX_RINGS; r++)
+                {
+                    if (r > (int)_OutlineWidth)
+                    {
+                        break;
+                    }
+
+                    float2 offset = texel * r;
+                    half ringAlpha = 0;
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(offset.x, 0)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv - float2(offset.x, 0)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(0, offset.y)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv - float2(0, offset.y)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(offset.x, offset.y)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv - float2(offset.x, offset.y)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(offset.x, -offset.y)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(-offset.x, offset.y)).a);
+
+                    half falloff = 1.0 - (half)(r - 1) / (half)_OutlineWidth;
+                    glow = max(glow, ringAlpha * falloff);
+                }
+
+                glow *= _GlowIntensity;
+                return half4(_OutlineColor.rgb, glow);
+            }
+            ENDHLSL
+        }
+    }
+}
+```
+
+- [ ] **Step 2: Verify it compiles**
+
+Run: `mcp__UnityMCP__refresh_unity(compile: "request")`, then `mcp__UnityMCP__read_console(action="get", types=["error"])`.
+Expected: no errors referencing `EntityFactionOutline.shader`.
+
+- [ ] **Step 3: Confirm the material picked up the new properties**
+
+```
+mcp__UnityMCP__manage_material(action="get_material_info", material_path="Assets/Art/Materials/EntityFactionOutline.mat")
+```
+
+Expected: `_OutlineWidth` and `_GlowIntensity` present with the shader's new defaults (`2`, `0.3`); `_Saturation`/`_Brightness` no longer listed (removed from the shader). `_OutlineColor` keeps whatever per-instance runtime value `EntityOutline` writes — the material-level default (`1,1,1,1`) is only what an unwired renderer would show.
+
+If the material still shows stale `_Saturation`/`_Brightness` values after the shader update, force a resync: `mcp__UnityMCP__manage_material(action="set_material_shader_property", material_path="Assets/Art/Materials/EntityFactionOutline.mat", property="_GlowIntensity", value=0.3)` (harmless no-op if already synced, forces Unity to refresh the material's property list against the shader).
+
+- [ ] **Step 4: Run the full test suite**
+
+```
+mcp__UnityMCP__run_tests(mode="EditMode")
+mcp__UnityMCP__run_tests(mode="PlayMode", init_timeout=120000)
+```
+
+Expected: all tests still pass — this task doesn't touch `EntityOutline.cs`, `_OutlineColor`, or anything the existing Edit/Play Mode tests assert on, so no test changes are expected or needed.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add Assets/Art/Shaders/EntityFactionOutline.shader Assets/Art/Materials/EntityFactionOutline.mat
+git commit -m "fix: replace hard outline with a subtle glow per user feedback"
+```
+
+- [ ] **Step 6: Manual visual re-check**
+
+```
+mcp__UnityMCP__manage_editor(action="play")
+```
+
+Ask the user to look again and confirm the glow now reads as subtle/faint rather than a hard ring, and that the sprite itself looks untouched (no saturation/brightness shift).
+
+```
+mcp__UnityMCP__manage_editor(action="stop")
+```
+
+If the user asks for it fainter/stronger/wider, retune via `mcp__UnityMCP__manage_material(action="set_material_shader_property", ...)` on `_GlowIntensity` (0-1) or `_OutlineWidth` (1-4) — no code change needed, and re-run Step 6.
+
 ---
 
 ## Self-Review Notes

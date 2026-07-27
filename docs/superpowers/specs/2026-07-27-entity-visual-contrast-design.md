@@ -66,6 +66,16 @@ This is rendering/visual work, bound to `MonoBehaviour` lifecycle (shader applic
 - Confirm `environmentTint` reaches both `tilemap` and `decorationTilemap` renderers without affecting entity sprites.
 - Visual comparison against the original reference screenshot's scenario (enemy blob, player, spiky enemy, root decoration in frame together) to confirm the contrast problem is resolved.
 
+## Revision 2026-07-27: hard outline replaced with a soft glow
+
+After implementation, manual verification in the Editor (Play Mode) showed the hard-edge 1px outline ring was too harsh/artificial-looking on the pixel art — rejected by the user outright ("todo el enfoque no funciona"). A quick round of alternative mockups (soft glow, ground marker, corner badge, soft sprite-wide tint) was reviewed; **soft glow, very subtle** was chosen.
+
+Change to the "Entity outline shader" section above:
+- The shader no longer draws a hard-edge outline ring. Instead, transparent texels near the sprite silhouette accumulate a soft, distance-falloff glow (checked at multiple ring radii, strongest closest to the sprite, fading to nothing within a small radius), multiplied by a low-intensity knob so the effect reads as a faint aura, not a ring.
+- The shader no longer applies any saturation/brightness boost to the sprite itself — the sprite renders exactly as its source art, per the user's explicit preference ("sprite intacto"). All entity-distinction signal now comes from the glow alone (environment dimming, Tasks 1-2, is unchanged and still does the entities-vs-environment half).
+- The `EntityOutline` component, its `_OutlineColor` MaterialPropertyBlock mechanism, the material asset path, and the prefab wiring (Tasks 4-5) are all unaffected — this is purely a fragment-shader rendering-technique change plus a material-default retune, not an architecture change.
+- Default glow radius and intensity are tuned low ("muy leve") per the user's request — exact values in the implementation plan's new task.
+
 ## Out of scope / explicitly deferred
 
 - Ally/companion faction color — no third tier exists yet; adding one is a follow-up once companions are implemented per the GDD.
