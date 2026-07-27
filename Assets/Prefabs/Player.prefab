@@ -107,10 +107,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Gameplay.PlayerVisualAnimator
   mover: {fileID: 8717283621851309385}
   spriteRenderer: {fileID: 2601863673307440489}
-  idleBobAmplitude: 0.03125
-  idleBobSpeed: 2.5
+  idleBreathAmount: 0.03125
+  idleBreathSpeed: 2.5
   hopHeight: 0.125
   squashAmount: 0.06
+  spriteFacesLeft: 1
 --- !u!1 &7607671208789150764
 GameObject:
   m_ObjectHideFlags: 0
@@ -230,11 +231,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Gameplay.FlickeringLight2D
   targetLight: {fileID: 0}
-  baseIntensity: 1.5
+  baseIntensity: 3
   intensityAmplitude: 1
-  baseOuterRadius: 3.5
+  baseOuterRadius: 3
   radiusAmplitude: 0.35
-  noiseSpeed: 1.2
+  noiseSpeed: 2.5
 --- !u!1 &8630132123239652941
 GameObject:
   m_ObjectHideFlags: 0
