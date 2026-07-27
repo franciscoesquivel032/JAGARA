@@ -7,14 +7,14 @@ using Jagara.Runtime.TurnSystem;
 namespace Jagara.Runtime.Gameplay
 {
     /// <summary>
-    /// Reads grid-movement input and drives PlayerGridMover. Input is resolved
+    /// Reads grid-movement input and drives GridMover. Input is resolved
     /// fresh every Update, so holding a direction produces continuous stepping
     /// once the mover's current tween finishes - no explicit input queue needed.
     /// </summary>
-    [RequireComponent(typeof(PlayerGridMover))]
+    [RequireComponent(typeof(GridMover))]
     public class PlayerController : MonoBehaviour
     {
-        [SerializeField] private PlayerGridMover mover;
+        [SerializeField] private GridMover mover;
         [SerializeField] private InputActionAsset controlsAsset;
 
         private InputAction moveAction;
@@ -38,15 +38,15 @@ namespace Jagara.Runtime.Gameplay
             mover.OnMoveCompleted -= HandleMoveCompleted;
         }
 
-        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver)
+        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy)
         {
             turnResolver = resolver;
-            mover.Initialize(floor, tilemap, startCell);
+            mover.Initialize(floor, tilemap, startCell, occupancy);
         }
 
         private void Update()
         {
-            if (mover.IsMoving)
+            if (mover.IsMoving || (turnResolver != null && turnResolver.IsResolving))
             {
                 return;
             }

@@ -3,16 +3,16 @@ using UnityEngine;
 namespace Jagara.Runtime.Gameplay
 {
     /// <summary>
-    /// Drives the player's procedural animation on the Visual child: idle
+    /// Drives an entity's procedural animation on the Visual child: idle
     /// breathing bob while stationary, a hop with squash-stretch during the
     /// grid tween, and flipX facing. Only touches the child's localPosition
-    /// and localScale, so it never fights PlayerGridMover, which tweens the
+    /// and localScale, so it never fights GridMover, which tweens the
     /// root. Math lives in PlayerMotionAnimator (Edit Mode testable).
     /// </summary>
     [RequireComponent(typeof(SpriteRenderer))]
-    public class PlayerVisualAnimator : MonoBehaviour
+    public class GridVisualAnimator : MonoBehaviour
     {
-        [SerializeField] private PlayerGridMover mover;
+        [SerializeField] private GridMover mover;
         [SerializeField] private SpriteRenderer spriteRenderer;
         [SerializeField] private float idleBreathAmount = 0.03125f;
         [SerializeField] private float idleBreathSpeed = 2.5f;
@@ -27,7 +27,7 @@ namespace Jagara.Runtime.Gameplay
         {
             if (mover == null)
             {
-                mover = GetComponentInParent<PlayerGridMover>();
+                mover = GetComponentInParent<GridMover>();
             }
 
             if (spriteRenderer == null)
@@ -37,7 +37,7 @@ namespace Jagara.Runtime.Gameplay
 
             if (mover == null || spriteRenderer == null)
             {
-                Debug.LogError("PlayerVisualAnimator: missing PlayerGridMover in parents or SpriteRenderer on this GameObject.");
+                Debug.LogError("GridVisualAnimator: missing GridMover in parents or SpriteRenderer on this GameObject.");
                 enabled = false;
                 return;
             }

@@ -64,7 +64,9 @@ namespace Jagara.Runtime.Gameplay
                 return;
             }
 
-            controller.Initialize(floor, tilemap, spawnCell, new TurnResolver());
+            int width = floor.Grid.GetLength(0);
+            int height = floor.Grid.GetLength(1);
+            controller.Initialize(floor, tilemap, spawnCell, new TurnResolver(), new OccupancyGrid(width, height));
 
             if (cameraFollow != null)
             {
