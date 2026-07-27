@@ -25,6 +25,11 @@ namespace Jagara.Runtime.DungeonGen
             X < other.Right && Right > other.X &&
             Y < other.Bottom && Bottom > other.Y;
 
+        // Half-open rectangle bounds check ([X, Right) x [Y, Bottom)), matching
+        // the convention already established by Overlaps above.
+        public bool Contains(int x, int y) =>
+            x >= X && x < Right && y >= Y && y < Bottom;
+
         public override string ToString() => $"Room(x:{X}, y:{Y}, w:{Width}, h:{Height})";
     }
 }
