@@ -69,12 +69,33 @@ namespace Jagara.Runtime.Enemies
         /// Pass 1 (advance) returns the first enterable neighbor strictly closer
         /// to the player than <paramref name="currentCell"/>. If none exists,
         /// Pass 2 (sidestep) returns the first enterable neighbor at exactly the
-        /// same distance (a lateral move around a blocker). If neither pass
-        /// finds a candidate, the enemy waits: <paramref name="step"/> is set to
-        /// <paramref name="currentCell"/> and this returns false.
+        /// same distance. If neither pass finds a candidate, the enemy waits:
+        /// <paramref name="step"/> is set to <paramref name="currentCell"/> and
+        /// this returns false.
         /// This is deliberately deterministic (fixed probe order, no "any
         /// minimum" search) so multiple enemies resolved in the same turn
         /// produce reproducible, non-thrashing movement.
+        ///
+        /// IMPORTANT - when Pass 2 can actually fire: on a normal 4-connected
+        /// grid, BFS is over a bipartite graph, so any two grid-adjacent cells
+        /// that are both reachable from the distance field's origin always
+        /// differ in distance by exactly 1 - never 0. That makes Pass 2's
+        /// equal-distance condition mathematically unsatisfiable whenever
+        /// <paramref name="currentCell"/> itself has a finite (reachable)
+        /// distance. Pass 2 can only find a match when <paramref name="currentCell"/>
+        /// is itself Unreachable (<see cref="DistanceField.Unreachable"/>) -
+        /// e.g. the enemy is standing in a pocket of floor tiles the distance
+        /// field's BFS never reached from its origin - because every open
+        /// neighbor in that same disconnected pocket is also Unreachable,
+        /// tying the current cell's (Unreachable) distance. Practical
+        /// consequence: an enemy that is reachable but genuinely blocked by
+        /// another entity occupying its one closer neighbor (e.g. a leader
+        /// blocking a follower in a 1-wide corridor) will NOT detour sideways
+        /// around it - Pass 2 has no legal candidate in that case, so
+        /// TryChooseStep falls through to Wait. This is accepted, known
+        /// behavior, not a bug - "sidestep" here means "wander within an
+        /// unreachable pocket while respecting occupancy and probe order",
+        /// not "route around a blocker while still closing on the player".
         /// </summary>
         public static bool TryChooseStep(
             DistanceField distances,
