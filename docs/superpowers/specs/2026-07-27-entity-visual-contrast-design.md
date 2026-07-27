@@ -84,6 +84,14 @@ Presented with the root cause, the user chose to go back to a **solid 1px hard o
 
 Change to the shader: revert to the Task 3 hard single-ring outline logic (drop the multi-ring falloff/`_GlowIntensity` property entirely), keep the "opaque pixels render as-is" behavior from the first revision (no boost). Change to the prefabs: `EntityOutline.outlineColor` on both `Player.prefab` and `Enemy.prefab` updated from the original bright gold (`#E8B84B`)/red (`#FF3B3B`) to muted tan-gold (`#C2A874`)/dusty brick-red (`#A85C52`). Exact values and the implementation task are in the plan.
 
+## Revision 2026-07-27 (third pass): anti-aliased partial-alpha edge instead of a hard 1-texel block
+
+After the muted-color solid outline (second revision) was checked live, the user asked for it "mucho más fino" (much thinner) — both less opaque AND occupying fewer effective screen pixels. The shader was already at 1 texel, the minimum meaningful width for a hard binary neighbor-check technique; going thinner in a way that's actually visible requires a different sampling approach, not just a smaller number.
+
+Fix: sample the outline's neighbor-alpha lookup with a **bilinear sampler** (`sampler_LinearClamp`, a built-in URP global sampler) instead of the sprite's own point sampler, at a **sub-texel offset** (`_OutlineWidth` default `0.5` instead of `1`). This makes the neighbor lookup blend between the transparent and opaque texel rather than snapping to a hard 0/1 value, producing a genuinely partial, anti-aliased alpha at the silhouette boundary — thinner-looking (partial coverage, not a full solid pixel band) and less opaque (the partial alpha is additionally scaled by a new `_OutlineIntensity` knob, default `0.55`) at the same time, addressing both parts of the request with one change. The sprite's own body still samples with the point sampler (`sampler_MainTex`), so the character art itself stays crisp — only the outline lookup uses bilinear.
+
+No color change in this revision (muted tan-gold/dusty-red from the second revision stand), no `EntityOutline.cs`/test changes needed — the stored `_OutlineColor` value each prefab holds is unaffected by how the shader chooses to render it, so the Task 5 Play Mode test's assertions remain valid without modification.
+
 ## Out of scope / explicitly deferred
 
 - Ally/companion faction color — no third tier exists yet; adding one is a follow-up once companions are implemented per the GDD.

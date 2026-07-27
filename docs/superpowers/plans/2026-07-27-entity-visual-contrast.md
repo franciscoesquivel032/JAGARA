@@ -1134,6 +1134,159 @@ mcp__UnityMCP__manage_editor(action="play")
 
 Ask the user to look again and confirm the muted solid outline reads well now. Leave Play Mode running for the controller/user to check immediately rather than calling `stop` — this mirrors Task 7's approach, since the last two rounds both needed a live look before either being satisfied or triggering another iteration.
 
+**Outcome (2026-07-27):** Step 8's re-check drew a request to make the outline "mucho más fino" — both less opaque and occupying fewer effective screen pixels. `_OutlineWidth` was already at 1 texel, the minimum meaningful value for the hard binary neighbor-check technique; going thinner requires a different sampling approach, not a smaller number. See the spec's third "Revision 2026-07-27" section and Task 9 below.
+
+---
+
+### Task 9: Anti-aliased partial-alpha outline edge
+
+**Files:**
+- Modify (via MCP `manage_shader` update): `Assets/Art/Shaders/EntityFactionOutline.shader`
+- Modify (via MCP `manage_material`): `Assets/Art/Materials/EntityFactionOutline.mat` (new property defaults)
+
+**Interfaces:**
+- No change to `EntityOutline.cs`, `_OutlineColor`, the prefabs' stored color values, or the Play Mode test — the stored `_OutlineColor` per prefab is unaffected by how the shader renders it, so Task 5's color assertions remain valid unmodified.
+- `_OutlineWidth`'s default changes from `1` to `0.5` (now a sub-texel offset, Range narrowed to `(0, 2)`); adds `_OutlineIntensity` (Range `0-1`, default `0.55`) as an overall alpha multiplier on the outline.
+
+- [ ] **Step 1: Update the shader via MCP**
+
+```
+mcp__UnityMCP__manage_shader(
+  action="update",
+  name="EntityFactionOutline",
+  path="Assets/Art/Shaders",
+  contents=<the shader source below>
+)
+```
+
+Shader source (replaces the Task 8 version in full — same overall structure, but the outline neighbor lookup switches from the sprite's point sampler to URP's built-in bilinear `sampler_LinearClamp` at a sub-texel offset, and outputs a continuous partial alpha instead of a hard 0/1 decision):
+
+```hlsl
+Shader "Jagara/EntityFactionOutline"
+{
+    Properties
+    {
+        _MainTex ("Sprite Texture", 2D) = "white" {}
+        _Color ("Tint", Color) = (1, 1, 1, 1)
+        _OutlineColor ("Outline Color", Color) = (1, 1, 1, 1)
+        _OutlineWidth ("Outline Width (texels)", Range(0, 2)) = 0.5
+        _OutlineIntensity ("Outline Intensity", Range(0, 1)) = 0.55
+    }
+    SubShader
+    {
+        Tags { "RenderType" = "Transparent" "Queue" = "Transparent" "RenderPipeline" = "UniversalPipeline" "IgnoreProjector" = "True" }
+        Blend SrcAlpha OneMinusSrcAlpha
+        ZWrite Off
+        Cull Off
+
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            TEXTURE2D(_MainTex);
+            SAMPLER(sampler_MainTex);
+
+            CBUFFER_START(UnityPerMaterial)
+                float4 _MainTex_ST;
+                float4 _MainTex_TexelSize;
+                half4 _Color;
+                half4 _OutlineColor;
+                float _OutlineWidth;
+                float _OutlineIntensity;
+            CBUFFER_END
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float2 uv : TEXCOORD0;
+                float4 color : COLOR;
+            };
+
+            struct Varyings
+            {
+                float4 positionHCS : SV_POSITION;
+                float2 uv : TEXCOORD0;
+                float4 color : COLOR;
+            };
+
+            Varyings vert(Attributes IN)
+            {
+                Varyings OUT;
+                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.uv = TRANSFORM_TEX(IN.uv, _MainTex);
+                OUT.color = IN.color * _Color;
+                return OUT;
+            }
+
+            half4 frag(Varyings IN) : SV_Target
+            {
+                half4 baseSample = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv) * IN.color;
+
+                if (baseSample.a > 0.001)
+                {
+                    return baseSample;
+                }
+
+                float2 texel = _MainTex_TexelSize.xy * _OutlineWidth;
+                half neighborAlpha = 0;
+                neighborAlpha = max(neighborAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_LinearClamp, IN.uv + float2(texel.x, 0)).a);
+                neighborAlpha = max(neighborAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_LinearClamp, IN.uv - float2(texel.x, 0)).a);
+                neighborAlpha = max(neighborAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_LinearClamp, IN.uv + float2(0, texel.y)).a);
+                neighborAlpha = max(neighborAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_LinearClamp, IN.uv - float2(0, texel.y)).a);
+
+                half outlineAlpha = neighborAlpha * _OutlineIntensity * _OutlineColor.a;
+                return half4(_OutlineColor.rgb, outlineAlpha);
+            }
+            ENDHLSL
+        }
+    }
+}
+```
+
+`sampler_LinearClamp` is a built-in global sampler provided by URP's `Core.hlsl` (already included) — no separate sampler declaration or property is needed for it.
+
+- [ ] **Step 2: Verify it compiles**
+
+Run: `mcp__UnityMCP__refresh_unity(compile: "request")`, then `mcp__UnityMCP__read_console(action="get", types=["error"])`.
+Expected: no errors referencing `EntityFactionOutline.shader`. If `sampler_LinearClamp` is undeclared on this URP version, that's a real compile error to report back rather than work around silently — escalate rather than inventing a replacement sampler name.
+
+- [ ] **Step 3: Confirm the material picked up the new properties**
+
+```
+mcp__UnityMCP__manage_material(action="get_material_info", material_path="Assets/Art/Materials/EntityFactionOutline.mat")
+```
+
+Expected: `_OutlineWidth` default `0.5`, `_OutlineIntensity` default `0.55` present. Force a resync via `set_material_shader_property` if stale values persist (same pattern as Tasks 7-8).
+
+- [ ] **Step 4: Run the full test suite**
+
+```
+mcp__UnityMCP__run_tests(mode="EditMode")
+mcp__UnityMCP__run_tests(mode="PlayMode", init_timeout=120000)
+```
+
+Expected: all tests still pass unchanged — this task doesn't touch anything the existing tests assert on (the stored `_OutlineColor` value, not its rendering, is what's tested).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add Assets/Art/Shaders/EntityFactionOutline.shader Assets/Art/Materials/EntityFactionOutline.mat
+git commit -m "fix: anti-alias the outline edge with a bilinear sub-texel sample per user feedback"
+```
+
+- [ ] **Step 6: Manual visual re-check**
+
+```
+mcp__UnityMCP__manage_editor(action="play")
+```
+
+Ask the user to look again and confirm the outline now reads as thinner and less opaque. Leave Play Mode running rather than calling `stop`.
+
+If still not thin/faint enough, `_OutlineWidth` (try lower, e.g. `0.35`) and `_OutlineIntensity` (try lower, e.g. `0.4`) are both live-tunable via `mcp__UnityMCP__manage_material(action="set_material_shader_property", ...)` without another shader edit or recompile.
+
 ---
 
 ## Self-Review Notes
