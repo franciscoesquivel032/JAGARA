@@ -20,6 +20,7 @@ namespace Jagara.Runtime.Enemies
     {
         private GridMover mover;
         private SpriteRenderer spriteRenderer;
+        private GridVisualAnimator visualAnimator;
 
         private EnemyConfigSO config;
         private EnemyAIContext context;
@@ -38,6 +39,7 @@ namespace Jagara.Runtime.Enemies
         {
             mover = GetComponent<GridMover>();
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+            visualAnimator = GetComponentInChildren<GridVisualAnimator>();
 
             if (spriteRenderer == null)
             {
@@ -84,6 +86,7 @@ namespace Jagara.Runtime.Enemies
             if (spriteRenderer != null)
             {
                 spriteRenderer.sprite = config.Sprite;
+                visualAnimator?.RefreshSpriteMetrics();
             }
 
             mover.MoveDuration = config.MoveDuration;
@@ -138,6 +141,11 @@ namespace Jagara.Runtime.Enemies
 
         private void HandleMoveCompleted()
         {
+            if (!animationPending)
+            {
+                return;
+            }
+
             resolver.EndActorAnimation();
             animationPending = false;
         }

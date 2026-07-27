@@ -99,6 +99,11 @@ namespace Jagara.Runtime.Gameplay
             StartCoroutine(MoveRoutine(tilemap.GetCellCenterWorld(new Vector3Int(targetCell.x, targetCell.y, 0))));
         }
 
+        private void OnDestroy()
+        {
+            occupancy?.Vacate(CurrentCell);
+        }
+
         private IEnumerator MoveRoutine(Vector3 targetWorldPos)
         {
             IsMoving = true;

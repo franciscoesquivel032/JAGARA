@@ -45,7 +45,6 @@ namespace Jagara.Runtime.Gameplay
 
             ApplyFog();
 
-
             Debug.Log($"Nightmare floor generated — seed: {seed}\n{floor.ToAsciiArt()}");
 
             int width = floor.Grid.GetLength(0);
@@ -62,7 +61,7 @@ namespace Jagara.Runtime.Gameplay
             SpawnEnemies(floor);
         }
 
-private void ApplyFog()
+        private void ApplyFog()
         {
             if (fogController == null)
             {
@@ -72,7 +71,6 @@ private void ApplyFog()
 
             fogController.Apply(nightmareTheme);
         }
-
 
         /// <summary>
         /// Spawns and initializes the player. Returns the player's GridMover
@@ -141,9 +139,20 @@ private void ApplyFog()
             enemiesRoot.SetParent(transform, worldPositionStays: false);
 
             int[] weights = new int[roster.Count];
+            int totalWeight = 0;
             for (int i = 0; i < roster.Count; i++)
             {
-                weights[i] = roster[i].weight;
+                // A null config would let PickIndex select an entry that
+                // later NREs in EnemyController.Initialize, so treat it as
+                // structurally unweighted (never selectable).
+                weights[i] = roster[i].config != null ? roster[i].weight : 0;
+                totalWeight += weights[i];
+            }
+
+            if (totalWeight <= 0)
+            {
+                Debug.LogWarning("NightmareBootstrap: nightmareTheme's enemyRoster has no valid (non-null config, non-zero weight) entries; floor will have no enemies.");
+                return;
             }
 
             for (int i = 0; i < floor.EnemySpawnPositions.Count; i++)

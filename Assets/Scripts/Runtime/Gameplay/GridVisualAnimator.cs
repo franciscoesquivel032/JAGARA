@@ -43,6 +43,18 @@ namespace Jagara.Runtime.Gameplay
             }
 
             baseLocalPosition = transform.localPosition;
+            RefreshSpriteMetrics();
+        }
+
+        /// <summary>
+        /// Recomputes cached sprite-derived metrics (currently spriteHeight)
+        /// from the SpriteRenderer's current sprite. Awake() caches these
+        /// once, but callers that reassign spriteRenderer.sprite after Awake
+        /// (e.g. EnemyController.Initialize applying a per-config sprite)
+        /// must call this afterward or the cached metric goes stale.
+        /// </summary>
+        public void RefreshSpriteMetrics()
+        {
             spriteHeight = spriteRenderer.sprite != null ? spriteRenderer.sprite.bounds.size.y : 1f;
         }
 
