@@ -949,6 +949,191 @@ mcp__UnityMCP__manage_editor(action="stop")
 
 If the user asks for it fainter/stronger/wider, retune via `mcp__UnityMCP__manage_material(action="set_material_shader_property", ...)` on `_GlowIntensity` (0-1) or `_OutlineWidth` (1-4) — no code change needed, and re-run Step 6.
 
+**Outcome (2026-07-27):** Step 6's re-check found the soft glow rejected too — at this project's native pixel-art resolution with point filtering, the multi-ring falloff only has 2-4 discrete distance steps to work with, which rendered as a blocky gradient patch rather than a soft aura ("no parece un glow... parece más una textura con gradient"). Presented with this root cause, the user chose to revert to a **solid 1px hard outline** (Task 3's original technique) but with **muted/desaturated colors** instead of the original bright gold/red. See the spec's second "Revision 2026-07-27" section and Task 8 below.
+
+---
+
+### Task 8: Revert to a solid outline with muted colors
+
+**Files:**
+- Modify (via MCP `manage_shader` update): `Assets/Art/Shaders/EntityFactionOutline.shader`
+- Modify (via MCP `manage_material`): `Assets/Art/Materials/EntityFactionOutline.mat` (drop stale glow properties, reset `_OutlineWidth` default)
+- Modify (via MCP, interactive prefab editing): `Assets/Prefabs/Player.prefab`, `Assets/Prefabs/Enemy.prefab` (new muted `outlineColor` values)
+- Modify: `Assets/Tests/PlayMode/NightmareBootstrapTests.cs` (update `PlayerOutlineColor`/`EnemyOutlineColor` constants to match)
+
+**Interfaces:**
+- No change to `EntityOutline.cs` or its `_OutlineColor` `MaterialPropertyBlock` mechanism — only the shader's rendering technique (back to a hard single-ring check, no glow falloff) and the two prefabs' stored `outlineColor` values change.
+- Removes `_GlowIntensity` (no longer used); `_OutlineWidth` reverts to meaning "outline ring width in texels" (Task 3's original meaning), default `1`.
+- New muted colors: Player `#C2A874` → `(0.7607843, 0.6588235, 0.4549020, 1)` (a tan-gold, `194/255, 168/255, 116/255`). Enemy `#A85C52` → `(0.6588235, 0.3607843, 0.3215686, 1)` (a dusty brick-red, `168/255, 92/255, 82/255`). Use these exact 7-decimal values in both the prefab `set_property` calls and the test constants — the existing tolerance-based `AssertOutlineColor` (from Task 5's fix) means exact bit-matching isn't required, but keeping them consistent avoids confusion.
+
+- [ ] **Step 1: Update the shader via MCP**
+
+```
+mcp__UnityMCP__manage_shader(
+  action="update",
+  name="EntityFactionOutline",
+  path="Assets/Art/Shaders",
+  contents=<the shader source below>
+)
+```
+
+Shader source (replaces the Task 7 version in full — reverts to Task 3's hard-outline fragment logic, keeps Task 7's "no sprite boost" behavior on the opaque path):
+
+```hlsl
+Shader "Jagara/EntityFactionOutline"
+{
+    Properties
+    {
+        _MainTex ("Sprite Texture", 2D) = "white" {}
+        _Color ("Tint", Color) = (1, 1, 1, 1)
+        _OutlineColor ("Outline Color", Color) = (1, 1, 1, 1)
+        _OutlineWidth ("Outline Width (texels)", Range(0, 4)) = 1
+    }
+    SubShader
+    {
+        Tags { "RenderType" = "Transparent" "Queue" = "Transparent" "RenderPipeline" = "UniversalPipeline" "IgnoreProjector" = "True" }
+        Blend SrcAlpha OneMinusSrcAlpha
+        ZWrite Off
+        Cull Off
+
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            TEXTURE2D(_MainTex);
+            SAMPLER(sampler_MainTex);
+
+            CBUFFER_START(UnityPerMaterial)
+                float4 _MainTex_ST;
+                float4 _MainTex_TexelSize;
+                half4 _Color;
+                half4 _OutlineColor;
+                float _OutlineWidth;
+            CBUFFER_END
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float2 uv : TEXCOORD0;
+                float4 color : COLOR;
+            };
+
+            struct Varyings
+            {
+                float4 positionHCS : SV_POSITION;
+                float2 uv : TEXCOORD0;
+                float4 color : COLOR;
+            };
+
+            Varyings vert(Attributes IN)
+            {
+                Varyings OUT;
+                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.uv = TRANSFORM_TEX(IN.uv, _MainTex);
+                OUT.color = IN.color * _Color;
+                return OUT;
+            }
+
+            half4 frag(Varyings IN) : SV_Target
+            {
+                half4 baseSample = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv) * IN.color;
+
+                if (baseSample.a > 0.001)
+                {
+                    return baseSample;
+                }
+
+                float2 texel = _MainTex_TexelSize.xy * _OutlineWidth;
+                half neighborAlpha = 0;
+                neighborAlpha += SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(texel.x, 0)).a;
+                neighborAlpha += SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv - float2(texel.x, 0)).a;
+                neighborAlpha += SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(0, texel.y)).a;
+                neighborAlpha += SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv - float2(0, texel.y)).a;
+
+                if (neighborAlpha > 0.001)
+                {
+                    return half4(_OutlineColor.rgb, _OutlineColor.a);
+                }
+
+                return half4(0, 0, 0, 0);
+            }
+            ENDHLSL
+        }
+    }
+}
+```
+
+- [ ] **Step 2: Verify it compiles**
+
+Run: `mcp__UnityMCP__refresh_unity(compile: "request")`, then `mcp__UnityMCP__read_console(action="get", types=["error"])`.
+Expected: no errors referencing `EntityFactionOutline.shader`.
+
+- [ ] **Step 3: Confirm the material dropped the stale glow property**
+
+```
+mcp__UnityMCP__manage_material(action="get_material_info", material_path="Assets/Art/Materials/EntityFactionOutline.mat")
+```
+
+Expected: `_OutlineWidth` present (default `1`); `_GlowIntensity` no longer listed. If it's still listed with a stale value, force a resync via `mcp__UnityMCP__manage_material(action="set_material_shader_property", material_path="Assets/Art/Materials/EntityFactionOutline.mat", property="_OutlineWidth", value=1)`.
+
+- [ ] **Step 4: Update both prefabs' outline colors**
+
+Player.prefab:
+```
+mcp__UnityMCP__manage_prefabs(action="open_prefab_stage", prefab_path="Assets/Prefabs/Player.prefab")
+mcp__UnityMCP__manage_components(action="set_property", target="Visual", search_method="by_name", component_type="EntityOutline", property="outlineColor", value={"r": 0.7607843, "g": 0.6588235, "b": 0.4549020, "a": 1.0})
+mcp__UnityMCP__manage_prefabs(action="save_prefab_stage")
+mcp__UnityMCP__manage_prefabs(action="close_prefab_stage")
+```
+
+Enemy.prefab:
+```
+mcp__UnityMCP__manage_prefabs(action="open_prefab_stage", prefab_path="Assets/Prefabs/Enemy.prefab")
+mcp__UnityMCP__manage_components(action="set_property", target="Visual", search_method="by_name", component_type="EntityOutline", property="outlineColor", value={"r": 0.6588235, "g": 0.3607843, "b": 0.3215686, "a": 1.0})
+mcp__UnityMCP__manage_prefabs(action="save_prefab_stage")
+mcp__UnityMCP__manage_prefabs(action="close_prefab_stage")
+```
+
+(Both prefabs already have `EntityOutline` on their `Visual` child from Task 5 — this only updates the color value, no `add`/material-assignment needed again.)
+
+- [ ] **Step 5: Update the Play Mode test's color constants**
+
+In `Assets/Tests/PlayMode/NightmareBootstrapTests.cs`, update the constants added in Task 5:
+
+```csharp
+        private static readonly Color PlayerOutlineColor = new Color(194f / 255f, 168f / 255f, 116f / 255f, 1f);
+        private static readonly Color EnemyOutlineColor = new Color(168f / 255f, 92f / 255f, 82f / 255f, 1f);
+```
+
+The rest of `NightmareBootstrap_OnStart_SpawnsPlayerAndEnemiesWithFactionOutlineColors` and `AssertOutlineColor` (the tolerance-based comparison from Task 5's fix) stay unchanged.
+
+- [ ] **Step 6: Run the full test suite**
+
+```
+mcp__UnityMCP__run_tests(mode="EditMode")
+mcp__UnityMCP__run_tests(mode="PlayMode", init_timeout=120000)
+```
+
+Expected: all tests pass, including the updated outline-color assertion.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add Assets/Art/Shaders/EntityFactionOutline.shader Assets/Art/Materials/EntityFactionOutline.mat Assets/Prefabs/Player.prefab Assets/Prefabs/Enemy.prefab Assets/Tests/PlayMode/NightmareBootstrapTests.cs
+git commit -m "fix: revert glow to a solid muted outline per user feedback"
+```
+
+- [ ] **Step 8: Manual visual re-check**
+
+```
+mcp__UnityMCP__manage_editor(action="play")
+```
+
+Ask the user to look again and confirm the muted solid outline reads well now. Leave Play Mode running for the controller/user to check immediately rather than calling `stop` — this mirrors Task 7's approach, since the last two rounds both needed a live look before either being satisfied or triggering another iteration.
+
 ---
 
 ## Self-Review Notes

@@ -76,6 +76,14 @@ Change to the "Entity outline shader" section above:
 - The `EntityOutline` component, its `_OutlineColor` MaterialPropertyBlock mechanism, the material asset path, and the prefab wiring (Tasks 4-5) are all unaffected — this is purely a fragment-shader rendering-technique change plus a material-default retune, not an architecture change.
 - Default glow radius and intensity are tuned low ("muy leve") per the user's request — exact values in the implementation plan's new task.
 
+## Revision 2026-07-27 (second pass): glow replaced with a muted solid outline
+
+The soft glow from the first revision was implemented and manually checked in Play Mode — also rejected. At this project's native pixel-art resolution with point (nearest-neighbor) filtering, a per-pixel multi-ring falloff has only 2-4 discrete distance steps to work with, which rendered as a blocky gradient patch rather than a soft aura, not a resolution the technique can fix without a fundamentally different rendering approach (real post-process bloom, or abandoning "soft" entirely).
+
+Presented with the root cause, the user chose to go back to a **solid 1px hard outline** (Task 3's original technique) but with **muted/desaturated colors** instead of the original bright gold/red — the hypothesis being that the earlier rejection was about color saturation, not edge hardness. Sprite itself stays untouched (no saturation/brightness boost), per the first revision's decision, which still holds.
+
+Change to the shader: revert to the Task 3 hard single-ring outline logic (drop the multi-ring falloff/`_GlowIntensity` property entirely), keep the "opaque pixels render as-is" behavior from the first revision (no boost). Change to the prefabs: `EntityOutline.outlineColor` on both `Player.prefab` and `Enemy.prefab` updated from the original bright gold (`#E8B84B`)/red (`#FF3B3B`) to muted tan-gold (`#C2A874`)/dusty brick-red (`#A85C52`). Exact values and the implementation task are in the plan.
+
 ## Out of scope / explicitly deferred
 
 - Ally/companion faction color — no third tier exists yet; adding one is a follow-up once companions are implemented per the GDD.
