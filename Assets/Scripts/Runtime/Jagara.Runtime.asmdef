@@ -1,7 +1,10 @@
 {
     "name": "Jagara.Runtime",
     "rootNamespace": "Jagara.Runtime",
-    "references": [],
+    "references": [
+        "Unity.InputSystem",
+        "Unity.RenderPipelines.Universal.2D.Runtime"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

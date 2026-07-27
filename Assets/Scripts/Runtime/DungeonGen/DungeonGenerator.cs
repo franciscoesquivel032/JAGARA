@@ -9,6 +9,12 @@ namespace Jagara.Runtime.DungeonGen
     {
         private const int MaxAttemptsPerRoom = 100;
 
+        // Rooms/corridors are kept at least this many tiles away from the grid
+        // boundary so every room always has a Wall tile bordering it. Without this,
+        // a room flush against x=0/y=0/GridWidth/GridHeight has no cell beyond the
+        // array to paint a wall into, and the tileset art clips at the map edge.
+        private const int EdgeMargin = 1;
+
         /// <summary>
         /// Generates a set of non-overlapping rectangular rooms within the grid bounds
         /// described by <paramref name="parameters"/>. Deterministic: the same seed and
@@ -284,8 +290,8 @@ namespace Jagara.Runtime.DungeonGen
 
                 int width = rng.Next(parameters.MinRoomWidth, parameters.MaxRoomWidth + 1);
                 int height = rng.Next(parameters.MinRoomHeight, parameters.MaxRoomHeight + 1);
-                int x = rng.Next(0, parameters.GridWidth - width + 1);
-                int y = rng.Next(0, parameters.GridHeight - height + 1);
+                int x = rng.Next(EdgeMargin, parameters.GridWidth - EdgeMargin - width + 1);
+                int y = rng.Next(EdgeMargin, parameters.GridHeight - EdgeMargin - height + 1);
 
                 var candidate = new RoomData(x, y, width, height);
 
@@ -336,8 +342,8 @@ namespace Jagara.Runtime.DungeonGen
             if (p.MinRoomHeight < 1 || p.MaxRoomHeight < p.MinRoomHeight)
                 throw new ArgumentException("Invalid room height range.", nameof(p));
 
-            if (p.MaxRoomWidth > p.GridWidth || p.MaxRoomHeight > p.GridHeight)
-                throw new ArgumentException("Room size exceeds grid bounds.", nameof(p));
+            if (p.MaxRoomWidth > p.GridWidth - 2 * EdgeMargin || p.MaxRoomHeight > p.GridHeight - 2 * EdgeMargin)
+                throw new ArgumentException("Room size exceeds grid bounds (accounting for the required edge margin).", nameof(p));
 
             if (p.MinEnemyCount < 0 || p.MaxEnemyCount < p.MinEnemyCount)
                 throw new ArgumentException("Invalid enemy count range.", nameof(p));
