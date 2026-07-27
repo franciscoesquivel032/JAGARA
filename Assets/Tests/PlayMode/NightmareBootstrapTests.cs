@@ -8,6 +8,7 @@ using UnityEngine.TestTools;
 using UnityEngine.Tilemaps;
 using Jagara.Runtime.Data;
 using Jagara.Runtime.DungeonGen;
+using Jagara.Runtime.Enemies;
 
 namespace Jagara.Tests.PlayMode
 {
@@ -32,10 +33,9 @@ namespace Jagara.Tests.PlayMode
             Transform spawnedEntities = floorInstantiator.transform.Find("SpawnedEntities");
             Assert.IsNotNull(spawnedEntities, "Expected FloorInstantiator to have spawned a SpawnedEntities root.");
 
-            string enemyPrefabName = GetPrefabName(floorInstantiator, "enemyMarkerPrefab");
             string itemPrefabName = GetPrefabName(floorInstantiator, "itemMarkerPrefab");
 
-            int enemyCount = CountChildrenNamed(spawnedEntities, enemyPrefabName);
+            int enemyCount = Object.FindObjectsByType<EnemyController>(FindObjectsSortMode.None).Length;
             int itemCount = CountChildrenNamed(spawnedEntities, itemPrefabName);
 
             var paramsSO = AssetDatabase.LoadAssetAtPath<DungeonGenerationParamsSO>(ParamsAssetPath);
@@ -43,7 +43,7 @@ namespace Jagara.Tests.PlayMode
             var configuredParams = paramsSO.ToParams();
 
             Assert.That(enemyCount, Is.InRange(configuredParams.MinEnemyCount, configuredParams.MaxEnemyCount),
-                $"Enemy marker count {enemyCount} outside configured range [{configuredParams.MinEnemyCount}, {configuredParams.MaxEnemyCount}].");
+                $"EnemyController count {enemyCount} outside configured range [{configuredParams.MinEnemyCount}, {configuredParams.MaxEnemyCount}].");
             Assert.That(itemCount, Is.InRange(configuredParams.MinItemCount, configuredParams.MaxItemCount),
                 $"Item marker count {itemCount} outside configured range [{configuredParams.MinItemCount}, {configuredParams.MaxItemCount}].");
         }
