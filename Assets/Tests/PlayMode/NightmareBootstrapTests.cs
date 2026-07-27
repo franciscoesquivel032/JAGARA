@@ -16,6 +16,7 @@ namespace Jagara.Tests.PlayMode
     {
         private const string ScenePath = "Assets/Scenes/DungeonPreview.unity";
         private const string ParamsAssetPath = "Assets/ScriptableObjects/DungeonGenParams_Nightmare1.asset";
+        private const string ThemeAssetPath = "Assets/ScriptableObjects/Themes/DefaultNightmareTheme.asset";
 
         [UnityTest]
         public IEnumerator NightmareBootstrap_OnStart_InstantiatesFloorWithinConfiguredRanges()
@@ -46,6 +47,24 @@ namespace Jagara.Tests.PlayMode
                 $"EnemyController count {enemyCount} outside configured range [{configuredParams.MinEnemyCount}, {configuredParams.MaxEnemyCount}].");
             Assert.That(itemCount, Is.InRange(configuredParams.MinItemCount, configuredParams.MaxItemCount),
                 $"Item marker count {itemCount} outside configured range [{configuredParams.MinItemCount}, {configuredParams.MaxItemCount}].");
+        }
+
+        [UnityTest]
+        public IEnumerator NightmareBootstrap_OnStart_AppliesEnvironmentTintToBothTilemaps()
+        {
+            EditorSceneManager.LoadSceneInPlayMode(ScenePath, new LoadSceneParameters(LoadSceneMode.Single));
+            yield return null;
+
+            var floorInstantiator = Object.FindFirstObjectByType<FloorInstantiator>();
+            Assert.IsNotNull(floorInstantiator, "Expected a FloorInstantiator in the scene.");
+
+            var theme = AssetDatabase.LoadAssetAtPath<NightmareThemeSO>(ThemeAssetPath);
+            Assert.IsNotNull(theme, $"Expected a NightmareThemeSO asset at '{ThemeAssetPath}'.");
+
+            Assert.AreEqual(theme.EnvironmentTint, floorInstantiator.Tilemap.color,
+                "Expected the floor tilemap's color to match the theme's EnvironmentTint.");
+            Assert.AreEqual(theme.EnvironmentTint, floorInstantiator.DecorationTilemap.color,
+                "Expected the decoration tilemap's color to match the theme's EnvironmentTint.");
         }
 
         private static string GetPrefabName(FloorInstantiator instantiator, string fieldName)

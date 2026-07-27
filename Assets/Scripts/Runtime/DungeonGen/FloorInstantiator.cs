@@ -18,6 +18,7 @@ namespace Jagara.Runtime.DungeonGen
         [SerializeField] private GameObject itemMarkerPrefab;
 
         public Tilemap Tilemap => tilemap;
+        public Tilemap DecorationTilemap => decorationTilemap;
 
         public void InstantiateFloor(FloorData floor)
         {
@@ -42,6 +43,27 @@ namespace Jagara.Runtime.DungeonGen
             ClearPreviousFloor();
             PaintTiles(floor);
             SpawnMarkers(floor);
+        }
+
+        public void ApplyEnvironmentTint(NightmareThemeSO theme)
+        {
+            if (tilemap == null)
+            {
+                Debug.LogError("FloorInstantiator: Tilemap reference is not assigned.");
+                return;
+            }
+
+            if (theme == null)
+            {
+                Debug.LogError("FloorInstantiator: theme is null; environment tint left unchanged.");
+                return;
+            }
+
+            tilemap.color = theme.EnvironmentTint;
+            if (decorationTilemap != null)
+            {
+                decorationTilemap.color = theme.EnvironmentTint;
+            }
         }
 
         private void PaintTiles(FloorData floor)
