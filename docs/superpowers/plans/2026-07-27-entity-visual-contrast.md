@@ -598,7 +598,7 @@ git commit -m "feat: add EntityOutline component and shared EntityFactionOutline
 - Consumes: `EntityOutline` component and `EntityFactionOutline.mat` (Task 4).
 - Both prefabs already have a child GameObject named `Visual` holding the `SpriteRenderer` and `GridVisualAnimator` (confirmed by reading both `.prefab` files during planning) — `EntityOutline` and the material swap both go on that same child.
 
-Color values: Player = `#E8B84B` → `(0.910, 0.722, 0.294, 1)`. Enemy = `#FF3B3B` → `(1.0, 0.231, 0.231, 1)`.
+Color values: Player = `#E8B84B` → `(0.9098039, 0.7215686, 0.2941176, 1)`. Enemy = `#FF3B3B` → `(1.0, 0.2313725, 0.2313725, 1)`. These are `232/255`, `184/255`, `75/255` and `59/255` carried to 7 decimal places — use exactly these digits in both the MCP `set_property` calls (Steps 1-2) and the test constants (Step 3) so no float-rounding mismatch causes a spurious test failure.
 
 - [ ] **Step 1: Edit Player.prefab**
 
@@ -622,7 +622,7 @@ mcp__UnityMCP__manage_components(
   search_method="by_name",
   component_type="EntityOutline",
   property="outlineColor",
-  value={"r": 0.910, "g": 0.722, "b": 0.294, "a": 1.0}
+  value={"r": 0.9098039, "g": 0.7215686, "b": 0.2941176, "a": 1.0}
 )
 ```
 
@@ -662,7 +662,7 @@ mcp__UnityMCP__manage_components(
   search_method="by_name",
   component_type="EntityOutline",
   property="outlineColor",
-  value={"r": 1.0, "g": 0.231, "b": 0.231, "a": 1.0}
+  value={"r": 1.0, "g": 0.2313725, "b": 0.2313725, "a": 1.0}
 )
 ```
 
