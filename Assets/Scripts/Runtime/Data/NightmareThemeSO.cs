@@ -37,10 +37,15 @@ namespace Jagara.Runtime.Data
 
         [SerializeField] private FogSettings fog = FogSettings.Default;
 
+        [Header("Environment Tint")]
+        [Tooltip("Multiply-tinted onto the floor and decoration Tilemaps to dim the environment relative to entities. White = no dimming.")]
+        [SerializeField] private Color environmentTint = new Color(140f / 255f, 140f / 255f, 153f / 255f, 1f);
+
         [Header("Enemy Roster (weighted)")]
         [SerializeField] private List<WeightedEnemy> enemyRoster = new();
 
         public FogSettings Fog => fog;
+        public Color EnvironmentTint => environmentTint;
         public IReadOnlyList<WeightedEnemy> EnemyRoster => enemyRoster;
     }
 }
