@@ -70,6 +70,7 @@ GameObject:
   - component: {fileID: 4117936553150190415}
   - component: {fileID: 4453809798931386442}
   - component: {fileID: 2705662236349798882}
+  - component: {fileID: 6014560558916595823}
   m_Layer: 0
   m_Name: Visual
   m_TagString: Untagged
@@ -118,7 +119,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
+  - {fileID: 2100000, guid: 387b8b8ffac834d419b9074b44833094, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -171,3 +172,17 @@ MonoBehaviour:
   hopHeight: 0.125
   squashAmount: 0.06
   spriteFacesLeft: 1
+--- !u!114 &6014560558916595823
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7601165993066632759}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f52e61c5e47284d48af8fb151645cd82, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Gameplay.EntityOutline
+  spriteRenderer: {fileID: 0}
+  outlineColor: {r: 0.6588235, g: 0.3607843, b: 0.3215686, a: 1}

@@ -1,0 +1,100 @@
+# Entity & Environment Visual Contrast — Design
+
+## Problem
+
+In the Nightmare dungeon scene, the player, enemies, and floor decoration all render in similarly low-saturation, dark tones (see reference screenshot: a pink enemy blob, the player, a green/purple spiky enemy, and red root/vine decoration all sitting on dark cave tiles). Nothing is color-coded, so at a glance it's hard to tell what's a threat, what's the player, and what's inert environment dressing.
+
+Two distinct sub-problems, addressed together:
+1. Entities (player, enemies) don't stand out from the environment (floor, walls, decoration).
+2. Player and enemies don't stand out from each other.
+
+## Scope
+
+- Applies only to the Nightmare scene context (dungeon rendering). The Hub currently has no enemies to distinguish, so it's out of scope.
+- Faction distinction is **player vs. enemy only** — there is no ally/companion entity in the game yet (GDD mentions companions only as a possible future addition). No `Faction` enum or per-`EnemyConfigSO` color field is introduced; a third tier would be a follow-up if/when companions are added.
+- Enemy sprites keep their individual designs/colors (Abomination, Eyeball, Leecher, Skull all look different); this design adds a uniform "this is an enemy" signal on top, it does not recolor enemies to match each other.
+
+## Approach
+
+Two complementary treatments, chosen together because they solve different halves of the problem:
+
+1. **Faction outline** on entities (player = one color, enemy = another) — solves player-vs-enemy.
+2. **Environment dimming** on floor/wall/decoration tiles — solves entities-vs-environment.
+
+Two alternative single-pronged approaches were considered and rejected as insufficient on their own: outline-only (doesn't fix decoration blending into the background) and environment-dimming-only (doesn't help the player tell enemies apart from themselves). A ground-marker (colored disc under an entity's feet) was also considered as a third layer but deferred — outline + dimming already address both halves; the marker can be revisited later if it turns out entities still don't stand out enough underfoot.
+
+## 1. Entity outline shader
+
+- New shader: `Assets/Art/Shaders/EntityFactionOutline.shader` — URP 2D-compatible, using the standard pixel-art outline technique (sample neighboring texels' alpha; where the current texel's alpha is 0 but a neighbor's alpha isn't, draw a solid outline color instead). Same pass also applies a small saturation/brightness multiply to the sprite's own colors — this is the entity-side complement to the environment dimming.
+- One shared `Material` asset instantiated from this shader (not per-entity — see below).
+- New component: `EntityOutline` (`MonoBehaviour`, `[RequireComponent(typeof(SpriteRenderer))]`) with `[SerializeField] private Color outlineColor`. On `Awake`/`OnEnable`, it writes `outlineColor` into a `MaterialPropertyBlock` and applies it via `SpriteRenderer.SetPropertyBlock` — this avoids instantiating a unique `Material` per entity, which would break SRP batching.
+- Colors are set directly on prefabs, not derived at runtime from any faction system:
+  - `Player.prefab`: `EntityOutline` with `outlineColor = #E8B84B` (gold/amber — a neutral "this is you" signal, distinct from any threat color).
+  - `Enemy.prefab`: `EntityOutline` with `outlineColor = #FF3B3B` (red — uniform across all enemy types regardless of `EnemyConfigSO`).
+- `PlayerController` currently holds no `SpriteRenderer` reference (verified: it only drives `GridMover`). Adding `EntityOutline` to the player's sprite GameObject/child is what introduces that reference — scoped to this component, not added elsewhere.
+- `EnemyController` already fetches `SpriteRenderer` via `GetComponentInChildren` (existing code) — `EntityOutline` sits alongside it on the same GameObject and does not change existing sprite-swap logic (`EnemyConfigSO.Sprite` assignment is untouched).
+
+## 2. Environment dimming
+
+- New field on `NightmareThemeSO`: `[SerializeField] private Color environmentTint`, alongside the existing `FogSettings` and enemy roster. Default value should be desaturated but not near-black (e.g. `#8C8C99`) so floor/wall tile detail stays legible — a pure-white default is a safe no-op (no dimming applied) if a theme asset doesn't set it.
+- `FloorInstantiator` exposes two `Tilemap` references already: `tilemap` (floor/walls) and `decorationTilemap` (the root/vine clutter and similar). Both use Unity's built-in `TilemapRenderer.color`, which multiplies with each tile's own sprite color — no new shader needed for this half.
+- `NightmareBootstrap` already holds references to both `floorInstantiator` and `nightmareTheme`, and already calls `fogController.Apply(nightmareTheme)` right after floor setup. This design adds one step in the same place: after floor instantiation, set `floorInstantiator.Tilemap.GetComponent<TilemapRenderer>().color` and the equivalent for `decorationTilemap` to `nightmareTheme.environmentTint`.
+- Because decoration lives on its own `decorationTilemap` (confirmed via `FloorInstantiator.cs` — `PaintDecoration` writes into `decorationTilemap`, separate from the floor/wall `tilemap`), dimming both tilemaps automatically dims the red root/vine clutter with no per-decoration-tile special-casing.
+
+## Data flow
+
+```
+NightmareBootstrap.Setup()
+  → DungeonGenerator.Generate(seed, depthParams) → FloorData
+  → FloorInstantiator instantiates tilemap + decorationTilemap from FloorData
+  → NightmareBootstrap applies nightmareTheme.environmentTint to both TilemapRenderers   (NEW STEP — mirrors existing fogController.Apply(nightmareTheme) call)
+  → fogController.Apply(nightmareTheme)   (existing, unchanged)
+  → Player/Enemy prefabs spawned — each already carries its own EntityOutline component
+     and color from the prefab; no runtime wiring needed at spawn time.
+```
+
+## Edge cases
+
+- `environmentTint` left at pure white on a `NightmareThemeSO` asset that predates this change: `TilemapRenderer.color` multiply is a no-op, so existing theme assets render unchanged until someone deliberately sets a tint.
+- Outline shader on a sprite with fully-transparent pixels (e.g. an enemy mid-fade-out) must not throw or draw stray outline artifacts — neighbor-sampling naturally produces no outline when there's no opaque texel nearby.
+- `MaterialPropertyBlock` must be reapplied if a `SpriteRenderer`'s sprite changes at runtime (relevant for `EnemyController`, which swaps `.sprite` from `EnemyConfigSO`) — the property block is independent of which sprite is assigned, so no re-application is needed, but this is called out because it's the kind of thing that looks fine until a sprite swap silently loses the tint state (it won't here, since the block is set on the renderer, not tied to a specific sprite).
+
+## Testing
+
+This is rendering/visual work, bound to `MonoBehaviour` lifecycle (shader application, `SpriteRenderer`/`TilemapRenderer` state) — per project convention (`CLAUDE.md`) this is not Edit Mode Test territory (no pure-logic algorithm to assert against). Verification is manual:
+- Play Mode / MCP-driven check that `Player.prefab` and `Enemy.prefab` render their respective outline colors correctly.
+- Confirm `environmentTint` reaches both `tilemap` and `decorationTilemap` renderers without affecting entity sprites.
+- Visual comparison against the original reference screenshot's scenario (enemy blob, player, spiky enemy, root decoration in frame together) to confirm the contrast problem is resolved.
+
+## Revision 2026-07-27: hard outline replaced with a soft glow
+
+After implementation, manual verification in the Editor (Play Mode) showed the hard-edge 1px outline ring was too harsh/artificial-looking on the pixel art — rejected by the user outright ("todo el enfoque no funciona"). A quick round of alternative mockups (soft glow, ground marker, corner badge, soft sprite-wide tint) was reviewed; **soft glow, very subtle** was chosen.
+
+Change to the "Entity outline shader" section above:
+- The shader no longer draws a hard-edge outline ring. Instead, transparent texels near the sprite silhouette accumulate a soft, distance-falloff glow (checked at multiple ring radii, strongest closest to the sprite, fading to nothing within a small radius), multiplied by a low-intensity knob so the effect reads as a faint aura, not a ring.
+- The shader no longer applies any saturation/brightness boost to the sprite itself — the sprite renders exactly as its source art, per the user's explicit preference ("sprite intacto"). All entity-distinction signal now comes from the glow alone (environment dimming, Tasks 1-2, is unchanged and still does the entities-vs-environment half).
+- The `EntityOutline` component, its `_OutlineColor` MaterialPropertyBlock mechanism, the material asset path, and the prefab wiring (Tasks 4-5) are all unaffected — this is purely a fragment-shader rendering-technique change plus a material-default retune, not an architecture change.
+- Default glow radius and intensity are tuned low ("muy leve") per the user's request — exact values in the implementation plan's new task.
+
+## Revision 2026-07-27 (second pass): glow replaced with a muted solid outline
+
+The soft glow from the first revision was implemented and manually checked in Play Mode — also rejected. At this project's native pixel-art resolution with point (nearest-neighbor) filtering, a per-pixel multi-ring falloff has only 2-4 discrete distance steps to work with, which rendered as a blocky gradient patch rather than a soft aura, not a resolution the technique can fix without a fundamentally different rendering approach (real post-process bloom, or abandoning "soft" entirely).
+
+Presented with the root cause, the user chose to go back to a **solid 1px hard outline** (Task 3's original technique) but with **muted/desaturated colors** instead of the original bright gold/red — the hypothesis being that the earlier rejection was about color saturation, not edge hardness. Sprite itself stays untouched (no saturation/brightness boost), per the first revision's decision, which still holds.
+
+Change to the shader: revert to the Task 3 hard single-ring outline logic (drop the multi-ring falloff/`_GlowIntensity` property entirely), keep the "opaque pixels render as-is" behavior from the first revision (no boost). Change to the prefabs: `EntityOutline.outlineColor` on both `Player.prefab` and `Enemy.prefab` updated from the original bright gold (`#E8B84B`)/red (`#FF3B3B`) to muted tan-gold (`#C2A874`)/dusty brick-red (`#A85C52`). Exact values and the implementation task are in the plan.
+
+## Revision 2026-07-27 (third pass): anti-aliased partial-alpha edge instead of a hard 1-texel block
+
+After the muted-color solid outline (second revision) was checked live, the user asked for it "mucho más fino" (much thinner) — both less opaque AND occupying fewer effective screen pixels. The shader was already at 1 texel, the minimum meaningful width for a hard binary neighbor-check technique; going thinner in a way that's actually visible requires a different sampling approach, not just a smaller number.
+
+Fix: sample the outline's neighbor-alpha lookup with a **bilinear sampler** (`sampler_LinearClamp`, a built-in URP global sampler) instead of the sprite's own point sampler, at a **sub-texel offset** (`_OutlineWidth` default `0.5` instead of `1`). This makes the neighbor lookup blend between the transparent and opaque texel rather than snapping to a hard 0/1 value, producing a genuinely partial, anti-aliased alpha at the silhouette boundary — thinner-looking (partial coverage, not a full solid pixel band) and less opaque (the partial alpha is additionally scaled by a new `_OutlineIntensity` knob, default `0.55`) at the same time, addressing both parts of the request with one change. The sprite's own body still samples with the point sampler (`sampler_MainTex`), so the character art itself stays crisp — only the outline lookup uses bilinear.
+
+No color change in this revision (muted tan-gold/dusty-red from the second revision stand), no `EntityOutline.cs`/test changes needed — the stored `_OutlineColor` value each prefab holds is unaffected by how the shader chooses to render it, so the Task 5 Play Mode test's assertions remain valid without modification.
+
+## Out of scope / explicitly deferred
+
+- Ally/companion faction color — no third tier exists yet; adding one is a follow-up once companions are implemented per the GDD.
+- Ground/ floor color marker under entities — considered as a possible third visual layer, deferred unless outline + dimming turn out insufficient in practice.
+- Any change to Hub scene rendering.
+- Any change to enemy stat/ability data (`EnemyConfigSO` combat fields untouched).

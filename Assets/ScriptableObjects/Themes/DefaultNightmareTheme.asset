@@ -22,3 +22,9 @@ MonoBehaviour:
   enemyRoster:
   - config: {fileID: 11400000, guid: 2bd6499a17fa40d4b8295d095e55ed71, type: 2}
     weight: 1
+  - config: {fileID: 11400000, guid: 2f0574b53c8efc5489a3e2e9d4e7afea, type: 2}
+    weight: 1
+  - config: {fileID: 11400000, guid: 2ee06e2d68f670245830937e4c7d90c0, type: 2}
+    weight: 1
+  - config: {fileID: 11400000, guid: 9c7a7ab1927d52646869ca4ec4a18b8f, type: 2}
+    weight: 1

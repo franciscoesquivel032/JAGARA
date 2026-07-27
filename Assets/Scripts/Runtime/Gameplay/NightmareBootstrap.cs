@@ -41,6 +41,7 @@ namespace Jagara.Runtime.Gameplay
             int seed = new System.Random().Next();
             FloorData floor = new DungeonGenerator().GenerateFloor(seed, generationParams.ToParams());
             floorInstantiator.InstantiateFloor(floor);
+            floorInstantiator.ApplyEnvironmentTint(nightmareTheme);
             gridOverlayInstantiator?.RenderOverlay(floor);
 
             ApplyFog();
