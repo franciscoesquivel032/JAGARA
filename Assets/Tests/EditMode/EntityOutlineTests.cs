@@ -32,7 +32,11 @@ namespace Jagara.Tests.EditMode
 
             var block = new MaterialPropertyBlock();
             spriteRenderer.GetPropertyBlock(block);
-            Assert.AreEqual(expected, block.GetColor(OutlineColorId));
+            Color actual = block.GetColor(OutlineColorId);
+            Assert.AreEqual(expected.r, actual.r, 0.001f);
+            Assert.AreEqual(expected.g, actual.g, 0.001f);
+            Assert.AreEqual(expected.b, actual.b, 0.001f);
+            Assert.AreEqual(expected.a, actual.a, 0.001f);
         }
 
         private static void SetPrivateField(object target, string name, object value)
