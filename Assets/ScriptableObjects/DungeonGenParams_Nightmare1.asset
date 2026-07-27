@@ -20,7 +20,7 @@ MonoBehaviour:
   maxRoomWidth: 8
   minRoomHeight: 4
   maxRoomHeight: 8
-  minEnemyCount: 6
-  maxEnemyCount: 8
+  minEnemyCount: 4
+  maxEnemyCount: 6
   minItemCount: 2
-  maxItemCount: 8
+  maxItemCount: 5
