@@ -15,7 +15,6 @@ namespace Jagara.Runtime.DungeonGen
         [SerializeField] private DungeonTilesetSO tileset;
 
         [Header("Marker Prefabs")]
-        [SerializeField] private GameObject enemyMarkerPrefab;
         [SerializeField] private GameObject itemMarkerPrefab;
 
         public Tilemap Tilemap => tilemap;
@@ -125,11 +124,6 @@ namespace Jagara.Runtime.DungeonGen
         {
             var spawnedRoot = new GameObject(SpawnedEntitiesRootName).transform;
             spawnedRoot.SetParent(transform, worldPositionStays: false);
-
-            foreach (var pos in floor.EnemySpawnPositions)
-            {
-                SpawnMarker(enemyMarkerPrefab, pos, spawnedRoot);
-            }
 
             foreach (var pos in floor.ItemSpawnPositions)
             {

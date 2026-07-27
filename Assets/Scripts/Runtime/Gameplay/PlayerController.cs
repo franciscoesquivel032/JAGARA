@@ -17,6 +17,8 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private GridMover mover;
         [SerializeField] private InputActionAsset controlsAsset;
 
+        public GridMover Mover => mover;
+
         private InputAction moveAction;
         private TurnResolver turnResolver;
 
