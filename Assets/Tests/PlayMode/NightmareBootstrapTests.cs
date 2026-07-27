@@ -20,8 +20,8 @@ namespace Jagara.Tests.PlayMode
         private const string ThemeAssetPath = "Assets/ScriptableObjects/Themes/DefaultNightmareTheme.asset";
 
         private static readonly int OutlineColorId = Shader.PropertyToID("_OutlineColor");
-        private static readonly Color PlayerOutlineColor = new Color(232f / 255f, 184f / 255f, 75f / 255f, 1f);
-        private static readonly Color EnemyOutlineColor = new Color(1f, 59f / 255f, 59f / 255f, 1f);
+        private static readonly Color PlayerOutlineColor = new Color(194f / 255f, 168f / 255f, 116f / 255f, 1f);
+        private static readonly Color EnemyOutlineColor = new Color(168f / 255f, 92f / 255f, 82f / 255f, 1f);
 
         [UnityTest]
         public IEnumerator NightmareBootstrap_OnStart_InstantiatesFloorWithinConfiguredRanges()
