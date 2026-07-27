@@ -31,7 +31,8 @@ Material:
     m_Floats:
     - _Brightness: 1.1
     - _GlowIntensity: 0.3
-    - _OutlineWidth: 1
+    - _OutlineIntensity: 0.55
+    - _OutlineWidth: 0.5
     - _Saturation: 1.25
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}

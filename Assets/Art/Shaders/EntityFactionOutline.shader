@@ -5,7 +5,8 @@ Shader "Jagara/EntityFactionOutline"
         _MainTex ("Sprite Texture", 2D) = "white" {}
         _Color ("Tint", Color) = (1, 1, 1, 1)
         _OutlineColor ("Outline Color", Color) = (1, 1, 1, 1)
-        _OutlineWidth ("Outline Width (texels)", Range(0, 4)) = 1
+        _OutlineWidth ("Outline Width (texels)", Range(0, 2)) = 0.5
+        _OutlineIntensity ("Outline Intensity", Range(0, 1)) = 0.55
     }
     SubShader
     {
@@ -30,6 +31,7 @@ Shader "Jagara/EntityFactionOutline"
                 half4 _Color;
                 half4 _OutlineColor;
                 float _OutlineWidth;
+                float _OutlineIntensity;
             CBUFFER_END
 
             struct Attributes
@@ -66,17 +68,13 @@ Shader "Jagara/EntityFactionOutline"
 
                 float2 texel = _MainTex_TexelSize.xy * _OutlineWidth;
                 half neighborAlpha = 0;
-                neighborAlpha += SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(texel.x, 0)).a;
-                neighborAlpha += SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv - float2(texel.x, 0)).a;
-                neighborAlpha += SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(0, texel.y)).a;
-                neighborAlpha += SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv - float2(0, texel.y)).a;
+                neighborAlpha = max(neighborAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_LinearClamp, IN.uv + float2(texel.x, 0)).a);
+                neighborAlpha = max(neighborAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_LinearClamp, IN.uv - float2(texel.x, 0)).a);
+                neighborAlpha = max(neighborAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_LinearClamp, IN.uv + float2(0, texel.y)).a);
+                neighborAlpha = max(neighborAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_LinearClamp, IN.uv - float2(0, texel.y)).a);
 
-                if (neighborAlpha > 0.001)
-                {
-                    return half4(_OutlineColor.rgb, _OutlineColor.a);
-                }
-
-                return half4(0, 0, 0, 0);
+                half outlineAlpha = neighborAlpha * _OutlineIntensity * _OutlineColor.a;
+                return half4(_OutlineColor.rgb, outlineAlpha);
             }
             ENDHLSL
         }
