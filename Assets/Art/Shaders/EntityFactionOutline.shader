@@ -4,10 +4,9 @@ Shader "Jagara/EntityFactionOutline"
     {
         _MainTex ("Sprite Texture", 2D) = "white" {}
         _Color ("Tint", Color) = (1, 1, 1, 1)
-        _OutlineColor ("Outline Color", Color) = (1, 1, 1, 1)
-        _OutlineWidth ("Outline Width (texels)", Range(0, 4)) = 1
-        _Saturation ("Saturation Multiplier", Range(0, 3)) = 1.25
-        _Brightness ("Brightness Multiplier", Range(0, 3)) = 1.1
+        _OutlineColor ("Glow Color", Color) = (1, 1, 1, 1)
+        _OutlineWidth ("Glow Radius (texels)", Range(1, 4)) = 2
+        _GlowIntensity ("Glow Intensity", Range(0, 1)) = 0.3
     }
     SubShader
     {
@@ -32,8 +31,7 @@ Shader "Jagara/EntityFactionOutline"
                 half4 _Color;
                 half4 _OutlineColor;
                 float _OutlineWidth;
-                float _Saturation;
-                float _Brightness;
+                float _GlowIntensity;
             CBUFFER_END
 
             struct Attributes
@@ -65,24 +63,38 @@ Shader "Jagara/EntityFactionOutline"
 
                 if (baseSample.a > 0.001)
                 {
-                    half luma = dot(baseSample.rgb, half3(0.299, 0.587, 0.114));
-                    half3 boosted = lerp(luma.xxx, baseSample.rgb, _Saturation) * _Brightness;
-                    return half4(boosted, baseSample.a);
+                    return baseSample;
                 }
 
-                float2 texel = _MainTex_TexelSize.xy * _OutlineWidth;
-                half neighborAlpha = 0;
-                neighborAlpha += SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(texel.x, 0)).a;
-                neighborAlpha += SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv - float2(texel.x, 0)).a;
-                neighborAlpha += SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(0, texel.y)).a;
-                neighborAlpha += SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv - float2(0, texel.y)).a;
+                static const int MAX_RINGS = 4;
+                float2 texel = _MainTex_TexelSize.xy;
+                half glow = 0;
 
-                if (neighborAlpha > 0.001)
+                [unroll]
+                for (int r = 1; r <= MAX_RINGS; r++)
                 {
-                    return half4(_OutlineColor.rgb, _OutlineColor.a);
+                    if (r > (int)_OutlineWidth)
+                    {
+                        break;
+                    }
+
+                    float2 offset = texel * r;
+                    half ringAlpha = 0;
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(offset.x, 0)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv - float2(offset.x, 0)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(0, offset.y)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv - float2(0, offset.y)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(offset.x, offset.y)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv - float2(offset.x, offset.y)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(offset.x, -offset.y)).a);
+                    ringAlpha = max(ringAlpha, SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv + float2(-offset.x, offset.y)).a);
+
+                    half falloff = 1.0 - (half)(r - 1) / (half)_OutlineWidth;
+                    glow = max(glow, ringAlpha * falloff);
                 }
 
-                return half4(0, 0, 0, 0);
+                glow *= _GlowIntensity;
+                return half4(_OutlineColor.rgb, glow);
             }
             ENDHLSL
         }
