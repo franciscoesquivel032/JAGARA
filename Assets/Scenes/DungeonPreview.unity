@@ -389,7 +389,7 @@ GameObject:
   - component: {fileID: 279088947}
   - component: {fileID: 279088950}
   m_Layer: 0
-  m_Name: Option_Atacar
+  m_Name: Option_Attack
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -434,7 +434,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Atack
+  m_text: Attack
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: f0c5238be93942444a7e3204d0dce64d, type: 2}
   m_sharedMaterial: {fileID: 7663560326229907202, guid: f0c5238be93942444a7e3204d0dce64d, type: 2}
@@ -26314,7 +26314,7 @@ GameObject:
   - component: {fileID: 1002810128}
   - component: {fileID: 1002810131}
   m_Layer: 0
-  m_Name: Option_Objetos
+  m_Name: Option_Bag
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -26639,7 +26639,7 @@ GameObject:
   - component: {fileID: 1208060257}
   - component: {fileID: 1208060260}
   m_Layer: 0
-  m_Name: Option_Salir
+  m_Name: Option_Close
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -27631,7 +27631,7 @@ GameObject:
   - component: {fileID: 1540443925}
   - component: {fileID: 1540443928}
   m_Layer: 0
-  m_Name: Option_Esperar
+  m_Name: Option_Wait
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
