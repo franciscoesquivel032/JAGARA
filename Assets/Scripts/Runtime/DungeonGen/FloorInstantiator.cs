@@ -6,16 +6,11 @@ namespace Jagara.Runtime.DungeonGen
 {
     public class FloorInstantiator : MonoBehaviour
     {
-        private const string SpawnedEntitiesRootName = "SpawnedEntities";
-
         [SerializeField] private Tilemap tilemap;
         [SerializeField] private Tilemap decorationTilemap;
 
         [Header("Visual Tileset")]
         [SerializeField] private DungeonTilesetSO tileset;
-
-        [Header("Marker Prefabs")]
-        [SerializeField] private GameObject itemMarkerPrefab;
 
         public Tilemap Tilemap => tilemap;
         public Tilemap DecorationTilemap => decorationTilemap;
@@ -42,7 +37,6 @@ namespace Jagara.Runtime.DungeonGen
 
             ClearPreviousFloor();
             PaintTiles(floor);
-            SpawnMarkers(floor);
         }
 
         public void ApplyEnvironmentTint(NightmareThemeSO theme)
@@ -142,28 +136,6 @@ namespace Jagara.Runtime.DungeonGen
             }
         }
 
-        private void SpawnMarkers(FloorData floor)
-        {
-            var spawnedRoot = new GameObject(SpawnedEntitiesRootName).transform;
-            spawnedRoot.SetParent(transform, worldPositionStays: false);
-
-            foreach (var pos in floor.ItemSpawnPositions)
-            {
-                SpawnMarker(itemMarkerPrefab, pos, spawnedRoot);
-            }
-        }
-
-        private void SpawnMarker(GameObject prefab, Vector2Int gridPos, Transform parent)
-        {
-            if (prefab == null)
-            {
-                return;
-            }
-
-            Vector3 worldPos = tilemap.GetCellCenterWorld(new Vector3Int(gridPos.x, gridPos.y, 0));
-            Instantiate(prefab, worldPos, Quaternion.identity, parent);
-        }
-
         private TileBase GetTileBase(FloorData floor, int x, int y)
         {
             TileType tileType = floor.Grid[x, y];
@@ -202,31 +174,6 @@ namespace Jagara.Runtime.DungeonGen
             if (decorationTilemap != null)
             {
                 decorationTilemap.ClearAllTiles();
-            }
-
-            // Not a per-frame call - only runs when InstantiateFloor is invoked, so this
-            // Find is fine to leave uncached.
-            Transform existingRoot = transform.Find(SpawnedEntitiesRootName);
-            if (existingRoot != null)
-            {
-                SafeDestroy(existingRoot.gameObject);
-            }
-        }
-
-        private static void SafeDestroy(Object obj)
-        {
-            if (obj == null)
-            {
-                return;
-            }
-
-            if (Application.isPlaying)
-            {
-                Destroy(obj);
-            }
-            else
-            {
-                DestroyImmediate(obj);
             }
         }
     }

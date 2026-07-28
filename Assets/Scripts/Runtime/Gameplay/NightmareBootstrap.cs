@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Jagara.Runtime.Data;
 using Jagara.Runtime.DungeonGen;
 using Jagara.Runtime.Enemies;
@@ -11,18 +12,21 @@ namespace Jagara.Runtime.Gameplay
     public class NightmareBootstrap : MonoBehaviour
     {
         private const string EnemiesRootName = "Enemies";
+        private const string ItemsRootName = "Items";
 
         [SerializeField] private DungeonGenerationParamsSO generationParams;
         [SerializeField] private FloorInstantiator floorInstantiator;
         [SerializeField] private GridOverlayInstantiator gridOverlayInstantiator;
         [SerializeField] private GameObject playerPrefab;
         [SerializeField] private GameObject enemyPrefab;
+        [SerializeField] private GameObject itemPrefab;
         [SerializeField] private CameraFollow cameraFollow;
         [SerializeField] private NightmareThemeSO nightmareTheme;
         [SerializeField] private FogController fogController;
         [SerializeField] private ActionMenuController actionMenu;
 
         private readonly TurnResolver turnResolver = new TurnResolver();
+        private readonly Dictionary<Vector2Int, ItemMarker> itemsOnFloor = new();
         private OccupancyGrid occupancy;
         private EnemyAIContext aiContext;
 
@@ -53,6 +57,11 @@ namespace Jagara.Runtime.Gameplay
             int width = floor.Grid.GetLength(0);
             int height = floor.Grid.GetLength(1);
             occupancy = new OccupancyGrid(width, height);
+
+            // Items must be spawned (and itemsOnFloor populated) before the player,
+            // since PlayerController.Initialize needs the registry to check pickups
+            // against. SpawnItems has no dependency on the player, so this order is safe.
+            SpawnItems(floor);
 
             GridMover playerMover = SpawnPlayer(floor);
             if (playerMover == null)
@@ -113,7 +122,7 @@ namespace Jagara.Runtime.Gameplay
 
             actionMenu?.Initialize(turnResolver);
 
-            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, actionMenu);
+            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, actionMenu, itemsOnFloor);
 
             if (cameraFollow != null)
             {
@@ -186,6 +195,71 @@ namespace Jagara.Runtime.Gameplay
                 }
 
                 controller.Initialize(roster[index].config, floor, tilemap, cell, turnResolver, aiContext);
+            }
+        }
+
+        private void SpawnItems(FloorData floor)
+        {
+            itemsOnFloor.Clear();
+
+            if (itemPrefab == null)
+            {
+                Debug.LogWarning("NightmareBootstrap: itemPrefab reference is not assigned; floor will have no items.");
+                return;
+            }
+
+            var itemTable = nightmareTheme != null ? nightmareTheme.ItemTable : null;
+            if (itemTable == null || itemTable.Count == 0)
+            {
+                Debug.LogWarning("NightmareBootstrap: nightmareTheme has no itemTable entries; floor will have no items.");
+                return;
+            }
+
+            var rng = new System.Random(floor.Seed);
+            Tilemap tilemap = floorInstantiator.Tilemap;
+
+            var itemsRoot = new GameObject(ItemsRootName).transform;
+            itemsRoot.SetParent(transform, worldPositionStays: false);
+
+            int[] weights = new int[itemTable.Count];
+            int totalWeight = 0;
+            for (int i = 0; i < itemTable.Count; i++)
+            {
+                // A null item would let PickIndex select an entry that later
+                // NREs in ItemMarker.Initialize, so treat it as structurally
+                // unweighted (never selectable).
+                weights[i] = itemTable[i].item != null ? itemTable[i].weight : 0;
+                totalWeight += weights[i];
+            }
+
+            if (totalWeight <= 0)
+            {
+                Debug.LogWarning("NightmareBootstrap: nightmareTheme's itemTable has no valid (non-null item, non-zero weight) entries; floor will have no items.");
+                return;
+            }
+
+            for (int i = 0; i < floor.ItemSpawnPositions.Count; i++)
+            {
+                Vector2Int cell = floor.ItemSpawnPositions[i];
+
+                int index = EnemyRosterPicker.PickIndex(weights, rng);
+                if (index == -1)
+                {
+                    Debug.LogWarning($"NightmareBootstrap: EnemyRosterPicker returned no valid index for cell {cell}; skipping spawn.");
+                    continue;
+                }
+
+                Vector3 worldPos = tilemap.GetCellCenterWorld(new Vector3Int(cell.x, cell.y, 0));
+                GameObject itemInstance = Instantiate(itemPrefab, worldPos, Quaternion.identity, itemsRoot);
+                var marker = itemInstance.GetComponent<ItemMarker>();
+                if (marker == null)
+                {
+                    Debug.LogError("NightmareBootstrap: itemPrefab is missing an ItemMarker component.");
+                    continue;
+                }
+
+                marker.Initialize(itemTable[index].item);
+                itemsOnFloor[cell] = marker;
             }
         }
     }

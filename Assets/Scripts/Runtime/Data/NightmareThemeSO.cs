@@ -35,6 +35,13 @@ namespace Jagara.Runtime.Data
             [Min(0)] public int weight;
         }
 
+        [System.Serializable]
+        public struct WeightedItem
+        {
+            public ItemSO item;
+            [Min(0)] public int weight;
+        }
+
         [SerializeField] private FogSettings fog = FogSettings.Default;
 
         [Header("Environment Tint")]
@@ -44,8 +51,12 @@ namespace Jagara.Runtime.Data
         [Header("Enemy Roster (weighted)")]
         [SerializeField] private List<WeightedEnemy> enemyRoster = new();
 
+        [Header("Item Roster (weighted)")]
+        [SerializeField] private List<WeightedItem> itemTable = new();
+
         public FogSettings Fog => fog;
         public Color EnvironmentTint => environmentTint;
         public IReadOnlyList<WeightedEnemy> EnemyRoster => enemyRoster;
+        public IReadOnlyList<WeightedItem> ItemTable => itemTable;
     }
 }
