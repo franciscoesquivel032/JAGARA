@@ -2,6 +2,7 @@ using Jagara.Runtime.Data;
 using Jagara.Runtime.DungeonGen;
 using Jagara.Runtime.Enemies;
 using Jagara.Runtime.TurnSystem;
+using Jagara.Runtime.UI;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
@@ -19,6 +20,7 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private CameraFollow cameraFollow;
         [SerializeField] private NightmareThemeSO nightmareTheme;
         [SerializeField] private FogController fogController;
+        [SerializeField] private ActionMenuController actionMenu;
 
         private readonly TurnResolver turnResolver = new TurnResolver();
         private OccupancyGrid occupancy;
@@ -104,7 +106,14 @@ namespace Jagara.Runtime.Gameplay
                 return null;
             }
 
-            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy);
+            if (actionMenu == null)
+            {
+                Debug.LogWarning("NightmareBootstrap: actionMenu reference is not assigned; player movement will not be blocked while the action menu is open.");
+            }
+
+            actionMenu?.Initialize(turnResolver);
+
+            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, actionMenu);
 
             if (cameraFollow != null)
             {

@@ -3,6 +3,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.Tilemaps;
 using Jagara.Runtime.DungeonGen;
 using Jagara.Runtime.TurnSystem;
+using Jagara.Runtime.UI;
 
 namespace Jagara.Runtime.Gameplay
 {
@@ -21,6 +22,7 @@ namespace Jagara.Runtime.Gameplay
 
         private InputAction moveAction;
         private TurnResolver turnResolver;
+        private ActionMenuController actionMenu;
 
         private void Awake()
         {
@@ -40,15 +42,16 @@ namespace Jagara.Runtime.Gameplay
             mover.OnMoveCompleted -= HandleMoveCompleted;
         }
 
-        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy)
+        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy, ActionMenuController menu)
         {
             turnResolver = resolver;
+            actionMenu = menu;
             mover.Initialize(floor, tilemap, startCell, occupancy);
         }
 
         private void Update()
         {
-            if (mover.IsMoving || (turnResolver != null && turnResolver.IsResolving))
+            if (mover.IsMoving || (turnResolver != null && turnResolver.IsResolving) || (actionMenu != null && actionMenu.IsOpen))
             {
                 return;
             }
