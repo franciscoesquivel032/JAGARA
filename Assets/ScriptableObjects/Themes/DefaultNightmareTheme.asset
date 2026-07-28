@@ -19,6 +19,7 @@ MonoBehaviour:
     noiseScale: 0.75
     layer1Drift: {x: 0.02, y: 0.012}
     layer2Drift: {x: -0.016, y: 0.025}
+  environmentTint: {r: 0.54901963, g: 0.54901963, b: 0.6, a: 1}
   enemyRoster:
   - config: {fileID: 11400000, guid: 2bd6499a17fa40d4b8295d095e55ed71, type: 2}
     weight: 1
@@ -27,4 +28,15 @@ MonoBehaviour:
   - config: {fileID: 11400000, guid: 2ee06e2d68f670245830937e4c7d90c0, type: 2}
     weight: 1
   - config: {fileID: 11400000, guid: 9c7a7ab1927d52646869ca4ec4a18b8f, type: 2}
+    weight: 1
+  itemTable:
+  - item: {fileID: 11400000, guid: 303b6e7ace699ab4eb7bc345202635b7, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: 94a1d71b2166d614ca754e8bc20f87f0, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: 578eeb7f40822ce44a956f335856384d, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: c673f80546e02c5458c89608a247ab5d, type: 2}
+    weight: 1
+  - item: {fileID: 11400000, guid: bfc1dee4557d7be44acb11dd4ae76ca1, type: 2}
     weight: 1

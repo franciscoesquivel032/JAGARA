@@ -36,6 +36,7 @@ namespace Jagara.Runtime.UI
         private IMenuAction[] optionActions;
         private int selectedIndex;
         private TurnResolver turnResolver;
+        private bool subPanelWasOpen;
 
         public bool IsOpen { get; private set; }
 
@@ -111,6 +112,25 @@ namespace Jagara.Runtime.UI
                 return;
             }
 
+            bool subPanelOpen = leftMenuRoot != null && leftMenuRoot.activeSelf;
+            if (subPanelOpen)
+            {
+                // Yield Navigate/Confirm to the sub-panel's own controller (e.g.
+                // InventoryPanelController) while it has focus - it reads the
+                // same Menu action map independently.
+                subPanelWasOpen = true;
+                return;
+            }
+
+            if (subPanelWasOpen)
+            {
+                // The sub-panel just closed itself (its own Cancel action) - refresh
+                // the shared description text back to this menu's selected row
+                // instead of leaving the sub-panel's last text showing.
+                subPanelWasOpen = false;
+                UpdateDescription();
+            }
+
             if (navigateUpAction.WasPressedThisFrame())
             {
                 Move(-1);
@@ -152,6 +172,7 @@ namespace Jagara.Runtime.UI
         {
             actionMenuRoot.SetActive(false);
             IsOpen = false;
+            subPanelWasOpen = false;
 
             if (leftMenuRoot != null)
             {

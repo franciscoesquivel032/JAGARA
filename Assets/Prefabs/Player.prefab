@@ -313,3 +313,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Gameplay.PlayerController
   mover: {fileID: 8717283621851309385}
   controlsAsset: {fileID: -944628639613478452, guid: 496718191ca01d243827301eee3d7e35, type: 3}
+  inventory: {fileID: 11400000, guid: 425e01dae15e1de4ebfe80cb0c905a0f, type: 2}

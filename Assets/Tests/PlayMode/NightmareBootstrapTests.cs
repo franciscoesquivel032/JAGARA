@@ -33,16 +33,8 @@ namespace Jagara.Tests.PlayMode
             Assert.IsNotNull(tilemap, "Expected a Tilemap in the scene.");
             Assert.Greater(tilemap.GetUsedTilesCount(), 0, "Expected at least one painted tile.");
 
-            var floorInstantiator = Object.FindFirstObjectByType<FloorInstantiator>();
-            Assert.IsNotNull(floorInstantiator, "Expected a FloorInstantiator in the scene.");
-
-            Transform spawnedEntities = floorInstantiator.transform.Find("SpawnedEntities");
-            Assert.IsNotNull(spawnedEntities, "Expected FloorInstantiator to have spawned a SpawnedEntities root.");
-
-            string itemPrefabName = GetPrefabName(floorInstantiator, "itemMarkerPrefab");
-
             int enemyCount = Object.FindObjectsByType<EnemyController>(FindObjectsSortMode.None).Length;
-            int itemCount = CountChildrenNamed(spawnedEntities, itemPrefabName);
+            int itemCount = Object.FindObjectsByType<ItemMarker>(FindObjectsSortMode.None).Length;
 
             var paramsSO = AssetDatabase.LoadAssetAtPath<DungeonGenerationParamsSO>(ParamsAssetPath);
             Assert.IsNotNull(paramsSO, $"Expected a DungeonGenerationParamsSO asset at '{ParamsAssetPath}'.");
@@ -51,7 +43,7 @@ namespace Jagara.Tests.PlayMode
             Assert.That(enemyCount, Is.InRange(configuredParams.MinEnemyCount, configuredParams.MaxEnemyCount),
                 $"EnemyController count {enemyCount} outside configured range [{configuredParams.MinEnemyCount}, {configuredParams.MaxEnemyCount}].");
             Assert.That(itemCount, Is.InRange(configuredParams.MinItemCount, configuredParams.MaxItemCount),
-                $"Item marker count {itemCount} outside configured range [{configuredParams.MinItemCount}, {configuredParams.MaxItemCount}].");
+                $"ItemMarker count {itemCount} outside configured range [{configuredParams.MinItemCount}, {configuredParams.MaxItemCount}].");
         }
 
         [UnityTest]
@@ -111,29 +103,5 @@ namespace Jagara.Tests.PlayMode
             Assert.AreEqual(expected.a, actual.a, tolerance, $"{label} outline color mismatch (a).");
         }
 
-        private static string GetPrefabName(FloorInstantiator instantiator, string fieldName)
-        {
-            var serialized = new SerializedObject(instantiator);
-            var property = serialized.FindProperty(fieldName);
-            Assert.IsNotNull(property, $"Expected serialized field '{fieldName}' on FloorInstantiator.");
-            var prefab = property.objectReferenceValue as GameObject;
-            Assert.IsNotNull(prefab, $"Expected '{fieldName}' to be assigned on FloorInstantiator.");
-            return prefab.name;
-        }
-
-        private static int CountChildrenNamed(Transform parent, string prefabName)
-        {
-            string cloneName = $"{prefabName}(Clone)";
-            int count = 0;
-            for (int i = 0; i < parent.childCount; i++)
-            {
-                if (parent.GetChild(i).name == cloneName)
-                {
-                    count++;
-                }
-            }
-
-            return count;
-        }
     }
 }

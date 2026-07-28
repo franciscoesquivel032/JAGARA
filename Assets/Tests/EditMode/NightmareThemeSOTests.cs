@@ -26,5 +26,11 @@ namespace Jagara.Tests.EditMode
             var expected = new Color(140f / 255f, 140f / 255f, 153f / 255f, 1f);
             Assert.AreEqual(expected, theme.EnvironmentTint);
         }
+
+        [Test]
+        public void ItemTable_DefaultsToEmpty()
+        {
+            Assert.AreEqual(0, theme.ItemTable.Count);
+        }
     }
 }
