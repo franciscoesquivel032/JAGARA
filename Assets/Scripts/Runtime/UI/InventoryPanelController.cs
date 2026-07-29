@@ -91,6 +91,16 @@ namespace Jagara.Runtime.UI
             {
                 inventory.OnInventoryChanged -= Refresh;
             }
+
+            // The Item Action Panel is a Canvas sibling, not a child of this
+            // GameObject - closing the Bag by any path (its own Cancel, or
+            // ActionMenuController.Close() via Escape/Cancel/ToggleMenu) would
+            // otherwise leave it active and visible with no parent panel to
+            // return to.
+            if (itemActionPanel != null)
+            {
+                itemActionPanel.Close();
+            }
         }
 
         private void Update()
