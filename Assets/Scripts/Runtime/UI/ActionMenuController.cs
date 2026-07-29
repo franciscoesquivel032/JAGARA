@@ -17,6 +17,15 @@ namespace Jagara.Runtime.UI
     /// script that SetActive(false)s its own GameObject would stop receiving
     /// Update() and could never reopen it.
     /// </summary>
+    /// <remarks>
+    /// Runs its Update() before the default execution order (see
+    /// DefaultExecutionOrder below). This must happen before InventoryPanelController/
+    /// ItemActionPanelController read the same Cancel action: those close themselves
+    /// on Cancel too, and if they ran first, leftMenuRoot.activeSelf would already be
+    /// false by the time this class checks it, making a single Cancel press close a
+    /// sub-panel and this menu in the same frame instead of one level at a time.
+    /// </remarks>
+    [DefaultExecutionOrder(-100)]
     public class ActionMenuController : MonoBehaviour
     {
         [SerializeField] private InputActionAsset controlsAsset;
@@ -31,6 +40,7 @@ namespace Jagara.Runtime.UI
         private InputAction navigateUpAction;
         private InputAction navigateDownAction;
         private InputAction confirmAction;
+        private InputAction cancelAction;
 
         private RectTransform[] optionRects;
         private IMenuAction[] optionActions;
@@ -48,6 +58,7 @@ namespace Jagara.Runtime.UI
             navigateUpAction = map.FindAction("NavigateUp", throwIfNotFound: true);
             navigateDownAction = map.FindAction("NavigateDown", throwIfNotFound: true);
             confirmAction = map.FindAction("Confirm", throwIfNotFound: true);
+            cancelAction = map.FindAction("Cancel", throwIfNotFound: true);
 
             var rows = new List<RectTransform>(optionsContainer.childCount);
             var actions = new List<IMenuAction>(optionsContainer.childCount);
@@ -84,6 +95,7 @@ namespace Jagara.Runtime.UI
             navigateUpAction.Enable();
             navigateDownAction.Enable();
             confirmAction.Enable();
+            cancelAction.Enable();
         }
 
         private void OnDisable()
@@ -93,6 +105,7 @@ namespace Jagara.Runtime.UI
             navigateUpAction.Disable();
             navigateDownAction.Disable();
             confirmAction.Disable();
+            cancelAction.Disable();
         }
 
         private void Update()
@@ -129,6 +142,12 @@ namespace Jagara.Runtime.UI
                 // instead of leaving the sub-panel's last text showing.
                 subPanelWasOpen = false;
                 UpdateDescription();
+            }
+
+            if (cancelAction.WasPressedThisFrame())
+            {
+                Close();
+                return;
             }
 
             if (navigateUpAction.WasPressedThisFrame())
