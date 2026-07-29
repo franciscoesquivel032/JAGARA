@@ -24,6 +24,7 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private NightmareThemeSO nightmareTheme;
         [SerializeField] private FogController fogController;
         [SerializeField] private ActionMenuController actionMenu;
+        [SerializeField] private ItemActionPanelController itemActionPanel;
 
         private readonly TurnResolver turnResolver = new TurnResolver();
         private readonly Dictionary<Vector2Int, ItemMarker> itemsOnFloor = new();
@@ -121,8 +122,9 @@ namespace Jagara.Runtime.Gameplay
             }
 
             actionMenu?.Initialize(turnResolver);
+            itemActionPanel?.Initialize(controller);
 
-            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, actionMenu, itemsOnFloor);
+            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, actionMenu, itemsOnFloor, itemPrefab);
 
             if (cameraFollow != null)
             {

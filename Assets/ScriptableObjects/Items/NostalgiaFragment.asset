@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Data.ItemSO
   displayName: Nostalgia Fragment
   sprite: {fileID: -612721199, guid: 839668a2e21371f47b9acf0dbe001f3f, type: 3}
-  description: "A warm memory that quiets the mind.\rAlleviates paranoia when consumed."
+  description: A warm memory that quiets the mind. Alleviates paranoia when consumed.
   effect: {fileID: 0}
   consumedOnUse: 1

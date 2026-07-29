@@ -27,6 +27,8 @@ namespace Jagara.Runtime.Gameplay
         private TurnResolver turnResolver;
         private ActionMenuController actionMenu;
         private Dictionary<Vector2Int, ItemMarker> itemsOnFloor;
+        private Tilemap tilemap;
+        private GameObject itemPrefab;
 
         private void Awake()
         {
@@ -51,11 +53,13 @@ namespace Jagara.Runtime.Gameplay
             mover.OnMoveCompleted -= HandleMoveCompleted;
         }
 
-        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy, ActionMenuController menu, Dictionary<Vector2Int, ItemMarker> itemsOnFloor)
+        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy, ActionMenuController menu, Dictionary<Vector2Int, ItemMarker> itemsOnFloor, GameObject itemPrefab)
         {
             turnResolver = resolver;
             actionMenu = menu;
             this.itemsOnFloor = itemsOnFloor;
+            this.tilemap = tilemap;
+            this.itemPrefab = itemPrefab;
             mover.Initialize(floor, tilemap, startCell, occupancy);
         }
 
@@ -104,6 +108,53 @@ namespace Jagara.Runtime.Gameplay
 
             itemsOnFloor.Remove(mover.CurrentCell);
             Destroy(marker.gameObject);
+        }
+
+        /// <summary>
+        /// Drops the inventory item at slotIndex onto the player's current
+        /// tile. Fails (no side effects) if the slot is empty/invalid or the
+        /// tile already has an item on it - callers are responsible for
+        /// surfacing that failure (e.g. keeping a confirmation panel open).
+        /// </summary>
+        public bool TryDropItem(int slotIndex)
+        {
+            if (inventory == null || itemsOnFloor == null)
+            {
+                return false;
+            }
+
+            if (slotIndex < 0 || slotIndex >= inventory.Slots.Count || inventory.Slots[slotIndex] == null)
+            {
+                return false;
+            }
+
+            Vector2Int cell = mover.CurrentCell;
+            if (itemsOnFloor.ContainsKey(cell))
+            {
+                return false;
+            }
+
+            if (itemPrefab == null)
+            {
+                Debug.LogError($"PlayerController on {name}: itemPrefab reference is not assigned; cannot drop items.");
+                return false;
+            }
+
+            ItemSO item = inventory.Slots[slotIndex];
+            Vector3 worldPos = tilemap.GetCellCenterWorld(new Vector3Int(cell.x, cell.y, 0));
+            GameObject itemInstance = Instantiate(itemPrefab, worldPos, Quaternion.identity);
+            var marker = itemInstance.GetComponent<ItemMarker>();
+            if (marker == null)
+            {
+                Debug.LogError("PlayerController: itemPrefab is missing an ItemMarker component.");
+                Destroy(itemInstance);
+                return false;
+            }
+
+            marker.Initialize(item);
+            itemsOnFloor[cell] = marker;
+            inventory.RemoveAt(slotIndex);
+            return true;
         }
     }
 }

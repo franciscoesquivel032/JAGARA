@@ -11,11 +11,12 @@ namespace Jagara.Runtime.UI
     /// Drives the Bag panel: shows only the player's occupied InventorySO slots
     /// (icon + name; empty slots are hidden entirely, not shown blank), moves a
     /// cursor between the visible slots using the same Menu action map
-    /// ActionMenuController uses, auto-scrolls the selected slot into view, and
-    /// closes itself back to the action menu via the Cancel action. Lives on the
-    /// panel's own GameObject (ActionMenuController's leftMenuRoot), so it only
-    /// runs Update()/OnEnable() while the panel is actually active - no separate
-    /// "is panel open" flag needed.
+    /// ActionMenuController uses, auto-scrolls the selected slot into view,
+    /// opens the Item Action Panel on Confirm, and closes itself back to the
+    /// action menu via the Cancel action. Lives on the panel's own GameObject
+    /// (ActionMenuController's leftMenuRoot), so it only runs Update()/
+    /// OnEnable() while the panel is actually active - no separate "is panel
+    /// open" flag needed.
     /// </summary>
     public class InventoryPanelController : MonoBehaviour
     {
@@ -35,9 +36,11 @@ namespace Jagara.Runtime.UI
         [SerializeField] private RectTransform cursor;
         [SerializeField] private TMP_Text descriptionText;
         [SerializeField] private SlotRow[] slotRows;
+        [SerializeField] private ItemActionPanelController itemActionPanel;
 
         private InputAction navigateUpAction;
         private InputAction navigateDownAction;
+        private InputAction confirmAction;
         private InputAction cancelAction;
 
         // Indices into inventory.Slots/slotRows of the currently occupied (thus
@@ -46,11 +49,18 @@ namespace Jagara.Runtime.UI
         private readonly List<int> occupiedSlotIndices = new();
         private int selectedPosition;
 
+        // Mirrors ActionMenuController's own subPanelWasOpen flag: while the
+        // Item Action Panel is active, Navigate/Confirm/Cancel are yielded to
+        // it entirely; once it closes itself, the shared description text is
+        // refreshed back to this panel's selected row.
+        private bool subPanelWasOpen;
+
         private void Awake()
         {
             var map = controlsAsset.FindActionMap("Menu", throwIfNotFound: true);
             navigateUpAction = map.FindAction("NavigateUp", throwIfNotFound: true);
             navigateDownAction = map.FindAction("NavigateDown", throwIfNotFound: true);
+            confirmAction = map.FindAction("Confirm", throwIfNotFound: true);
             cancelAction = map.FindAction("Cancel", throwIfNotFound: true);
 
             if (inventory == null)
@@ -61,13 +71,11 @@ namespace Jagara.Runtime.UI
 
         private void OnEnable()
         {
-            // NavigateUp/NavigateDown are NOT enabled/disabled here: FindActionMap
+            // NavigateUp/NavigateDown/Cancel are NOT enabled/disabled here: FindActionMap
             // returns the same underlying InputAction instances ActionMenuController
             // already reads from the same "Menu" map. ActionMenuController owns their
             // enabled lifetime for as long as the whole menu system is active; disabling
             // them here on close would (and did) also disable them for the action menu.
-            cancelAction.Enable();
-
             if (inventory != null)
             {
                 inventory.OnInventoryChanged += Refresh;
@@ -79,8 +87,6 @@ namespace Jagara.Runtime.UI
 
         private void OnDisable()
         {
-            cancelAction.Disable();
-
             if (inventory != null)
             {
                 inventory.OnInventoryChanged -= Refresh;
@@ -89,6 +95,25 @@ namespace Jagara.Runtime.UI
 
         private void Update()
         {
+            bool subPanelOpen = itemActionPanel != null && itemActionPanel.gameObject.activeSelf;
+            if (subPanelOpen)
+            {
+                // Yield Navigate/Confirm/Cancel to the Item Action Panel's own
+                // controller while it has focus - it reads the same Menu
+                // action map independently.
+                subPanelWasOpen = true;
+                return;
+            }
+
+            if (subPanelWasOpen)
+            {
+                // The sub-panel just closed itself - refresh the shared
+                // description text back to this panel's selected row instead
+                // of leaving the sub-panel's last text showing.
+                subPanelWasOpen = false;
+                UpdateDescription();
+            }
+
             if (navigateUpAction.WasPressedThisFrame())
             {
                 Move(-1);
@@ -101,6 +126,11 @@ namespace Jagara.Runtime.UI
             if (cancelAction.WasPressedThisFrame())
             {
                 gameObject.SetActive(false);
+            }
+
+            if (confirmAction.WasPressedThisFrame() && occupiedSlotIndices.Count > 0 && itemActionPanel != null)
+            {
+                itemActionPanel.Open(occupiedSlotIndices[selectedPosition]);
             }
         }
 
