@@ -47,7 +47,7 @@ namespace Jagara.Runtime.Gameplay
             tilemap = tilemapRef;
             occupancy = occupancyGrid;
             CurrentCell = startCell;
-            occupancy.Occupy(startCell);
+            occupancy.Occupy(startCell, gameObject);
             transform.position = tilemap.GetCellCenterWorld(new Vector3Int(startCell.x, startCell.y, 0));
         }
 

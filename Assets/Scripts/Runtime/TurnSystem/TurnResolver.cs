@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -30,6 +31,15 @@ namespace Jagara.Runtime.TurnSystem
         /// (e.g. PlayerController.Update) should block new player input while this is true.
         /// </summary>
         public bool IsResolving => isIterating || animatingActorCount > 0;
+
+        /// <summary>
+        /// Raised once per EndPlayerTurn call, after every registered actor has
+        /// taken its turn and pending registrations have flushed. Used for
+        /// per-turn resource effects (e.g. Paranoia gain) that should apply
+        /// regardless of which player action (move, bump-attack, item use)
+        /// ended the turn.
+        /// </summary>
+        public event Action OnPlayerTurnEnded = delegate { };
 
         /// <summary>
         /// Registers an actor to take a turn each time EndPlayerTurn runs. If called while
@@ -79,6 +89,7 @@ namespace Jagara.Runtime.TurnSystem
             isIterating = false;
 
             FlushPendingRegistrations();
+            OnPlayerTurnEnded();
         }
 
         private void FlushPendingRegistrations()

@@ -77,13 +77,13 @@ namespace Jagara.Runtime.Gameplay
             // against. SpawnItems has no dependency on the player, so this order is safe.
             SpawnItems(floor);
 
-            GridMover playerMover = SpawnPlayer(floor);
-            if (playerMover == null)
+            PlayerController player = SpawnPlayer(floor);
+            if (player == null)
             {
                 return;
             }
 
-            aiContext = new EnemyAIContext(floor, occupancy, turnResolver, playerMover);
+            aiContext = new EnemyAIContext(floor, occupancy, turnResolver, player.Mover, player.Stats);
             SpawnEnemies(floor);
 
             // Posted last so it isn't immediately buried by anything spawning does.
@@ -105,11 +105,12 @@ namespace Jagara.Runtime.Gameplay
         }
 
         /// <summary>
-        /// Spawns and initializes the player. Returns the player's GridMover
-        /// (needed to construct EnemyAIContext), or null if spawning failed -
-        /// callers must treat null as "abort the rest of Start()".
+        /// Spawns and initializes the player. Returns the player's
+        /// PlayerController (needed to construct EnemyAIContext via its Mover
+        /// and Stats), or null if spawning failed - callers must treat null as
+        /// "abort the rest of Start()".
         /// </summary>
-        private GridMover SpawnPlayer(FloorData floor)
+        private PlayerController SpawnPlayer(FloorData floor)
         {
             if (playerPrefab == null)
             {
@@ -154,7 +155,7 @@ namespace Jagara.Runtime.Gameplay
                 Debug.LogWarning("NightmareBootstrap: cameraFollow reference is not assigned; camera will not follow the player.");
             }
 
-            return controller.Mover;
+            return controller;
         }
 
         private void SpawnEnemies(FloorData floor)

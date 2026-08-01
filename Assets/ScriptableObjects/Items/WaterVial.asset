@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Data.ItemSO
   displayName: Water vial
   sprite: {fileID: 1984732402, guid: 839668a2e21371f47b9acf0dbe001f3f, type: 3}
-  description: Glass vial filled with holy water. It restores the mind of those who
-    drink it, partially recovering their strength.
+  description: Glass vial filled with water. It restores the mind of those who drink
+    it.
   effect: {fileID: 0}
   consumedOnUse: 1

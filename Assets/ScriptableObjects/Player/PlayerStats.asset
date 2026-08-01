@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bf4267c2ba55cc4c8508b28b96dca8f, type: 3}
+  m_Name: PlayerStats
+  m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Data.PlayerStatsSO
+  vigor: 5
+  poder: 3
+  voluntad: 2
+  maxParanoia: 100
+  baseParanoiaGainPerTurn: 3
+  paranoiaReductionPerVoluntadPoint: 1
+  minParanoiaGainPerTurn: 1

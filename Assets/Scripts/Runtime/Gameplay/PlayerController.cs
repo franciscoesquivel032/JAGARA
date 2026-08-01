@@ -2,8 +2,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Tilemaps;
+using Jagara.Runtime.Combat;
 using Jagara.Runtime.Data;
 using Jagara.Runtime.DungeonGen;
+using Jagara.Runtime.Enemies;
 using Jagara.Runtime.Narrative;
 using Jagara.Runtime.TurnSystem;
 
@@ -20,6 +22,7 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private GridMover mover;
         [SerializeField] private InputActionAsset controlsAsset;
         [SerializeField] private InventorySO inventory;
+        [SerializeField] private PlayerStatsSO stats;
 
         [Tooltip("Blocks movement while a menu or dialogue is on screen. A ScriptableObject so the prefab can hold it - scene objects can't be serialized here.")]
         [SerializeField] private GameplayInputGateSO inputGate;
@@ -29,11 +32,16 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private MessageTemplateSO itemPickedUpMessage;
         [SerializeField] private MessageTemplateSO inventoryFullMessage;
         [SerializeField] private MessageTemplateSO itemDroppedMessage;
+        [SerializeField] private MessageTemplateSO attackMessage;
+        [SerializeField] private MessageTemplateSO enemyDefeatedMessage;
+        [SerializeField] private MessageTemplateSO playerDefeatedMessage;
 
         public GridMover Mover => mover;
+        public PlayerStatsSO Stats => stats;
 
         private InputAction moveAction;
         private TurnResolver turnResolver;
+        private OccupancyGrid occupancy;
         private Dictionary<Vector2Int, ItemMarker> itemsOnFloor;
         private Tilemap tilemap;
         private GameObject itemPrefab;
@@ -52,27 +60,50 @@ namespace Jagara.Runtime.Gameplay
             {
                 Debug.LogError($"PlayerController on {name}: inputGate reference is not assigned; the player will keep moving while menus and dialogue are open.");
             }
+
+            if (stats == null)
+            {
+                Debug.LogError($"PlayerController on {name}: stats reference is not assigned; the player will have no HP/Paranoia and cannot attack.");
+            }
         }
 
         private void OnEnable()
         {
             moveAction.Enable();
             mover.OnMoveCompleted += HandleMoveCompleted;
+
+            if (stats != null)
+            {
+                stats.Health.OnDeath += HandleDeath;
+            }
         }
 
         private void OnDisable()
         {
             moveAction.Disable();
             mover.OnMoveCompleted -= HandleMoveCompleted;
+
+            if (stats != null)
+            {
+                stats.Health.OnDeath -= HandleDeath;
+            }
+
+            if (turnResolver != null)
+            {
+                turnResolver.OnPlayerTurnEnded -= HandleTurnEnded;
+            }
         }
 
         public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy, Dictionary<Vector2Int, ItemMarker> itemsOnFloor, GameObject itemPrefab)
         {
             turnResolver = resolver;
+            this.occupancy = occupancy;
             this.itemsOnFloor = itemsOnFloor;
             this.tilemap = tilemap;
             this.itemPrefab = itemPrefab;
             mover.Initialize(floor, tilemap, startCell, occupancy);
+
+            turnResolver.OnPlayerTurnEnded += HandleTurnEnded;
         }
 
         private void Update()
@@ -83,10 +114,63 @@ namespace Jagara.Runtime.Gameplay
             }
 
             Vector2Int direction = CardinalDirectionResolver.Resolve(moveAction.ReadValue<Vector2>());
-            if (direction != Vector2Int.zero)
+            if (direction == Vector2Int.zero)
             {
-                mover.TryMove(direction);
+                return;
             }
+
+            Vector2Int target = mover.CurrentCell + direction;
+            if (occupancy != null && occupancy.TryGetOccupant(target, out GameObject occupant) && occupant.TryGetComponent(out EnemyController enemy))
+            {
+                PerformAttack(enemy);
+                return;
+            }
+
+            mover.TryMove(direction);
+        }
+
+        /// <summary>
+        /// Resolves a basic bump-attack (no PP cost) against an adjacent enemy
+        /// instead of moving into its tile. Ends the turn directly since there's
+        /// no move tween to wait for (unlike HandleMoveCompleted's movement path).
+        /// </summary>
+        private void PerformAttack(EnemyController enemy)
+        {
+            if (stats == null)
+            {
+                return;
+            }
+
+            CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(stats.Poder, enemy.Health);
+
+            if (result.DefenderDied)
+            {
+                Post(enemyDefeatedMessage, StyledName.Enemy(enemy.DisplayName));
+                enemy.Die();
+            }
+            else
+            {
+                Post(attackMessage, StyledName.Enemy(enemy.DisplayName), result.Damage);
+            }
+
+            turnResolver?.EndPlayerTurn();
+        }
+
+        /// <summary>Applies one turn's worth of Paranoia gain. Fires from every player action that ends a turn (move, bump-attack, item use).</summary>
+        private void HandleTurnEnded()
+        {
+            stats?.ApplyTurnParanoiaGain();
+        }
+
+        /// <summary>
+        /// Placeholder death handling: [PENDIENTE] the GDD's nightmare-failure
+        /// system (bank loss, Paranoia reset to half) needs the Hub, which
+        /// doesn't exist yet. For now, just log it and freeze input.
+        /// </summary>
+        private void HandleDeath()
+        {
+            Post(playerDefeatedMessage);
+            inputGate?.PushBlock();
         }
 
         private void HandleMoveCompleted()

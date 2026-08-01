@@ -12,9 +12,17 @@ namespace Jagara.Runtime.Gameplay
     {
         private readonly bool[,] occupancy;
 
+        // Parallel to `occupancy`: which GameObject occupies a cell, if known.
+        // Kept separate (rather than replacing the bool grid) so existing
+        // callers that only ever cared about "is this cell blocked" - and the
+        // tests covering them - are unaffected by callers that also want to
+        // know who's blocking it (e.g. bump-attack).
+        private readonly GameObject[,] occupants;
+
         public OccupancyGrid(int width, int height)
         {
             occupancy = new bool[width, height];
+            occupants = new GameObject[width, height];
         }
 
         /// <summary>
@@ -32,9 +40,11 @@ namespace Jagara.Runtime.Gameplay
         }
 
         /// <summary>
-        /// Marks the cell as occupied. If already occupied, logs an error (this is a bug, not a valid state).
+        /// Marks the cell as occupied, optionally recording which GameObject
+        /// occupies it (e.g. bump-attack target lookup). If already occupied,
+        /// logs an error (this is a bug, not a valid state).
         /// </summary>
-        public void Occupy(Vector2Int cell)
+        public void Occupy(Vector2Int cell, GameObject occupant = null)
         {
             if (IsOccupied(cell))
             {
@@ -45,6 +55,7 @@ namespace Jagara.Runtime.Gameplay
             if (cell.x >= 0 && cell.y >= 0 && cell.x < occupancy.GetLength(0) && cell.y < occupancy.GetLength(1))
             {
                 occupancy[cell.x, cell.y] = true;
+                occupants[cell.x, cell.y] = occupant;
             }
         }
 
@@ -56,16 +67,37 @@ namespace Jagara.Runtime.Gameplay
             if (cell.x >= 0 && cell.y >= 0 && cell.x < occupancy.GetLength(0) && cell.y < occupancy.GetLength(1))
             {
                 occupancy[cell.x, cell.y] = false;
+                occupants[cell.x, cell.y] = null;
             }
         }
 
         /// <summary>
-        /// Moves occupancy from one cell to another (vacates from, then occupies to).
+        /// Moves occupancy (and its recorded occupant, if any) from one cell to another.
         /// </summary>
         public void Move(Vector2Int from, Vector2Int to)
         {
+            TryGetOccupant(from, out GameObject occupant);
             Vacate(from);
-            Occupy(to);
+            Occupy(to, occupant);
+        }
+
+        /// <summary>
+        /// Returns true and outputs the occupying GameObject if the cell is
+        /// occupied AND an occupant was recorded (Occupy was called with a
+        /// non-null occupant). Returns false (occupant = null) for an
+        /// unoccupied cell, an out-of-bounds cell, or a cell occupied without
+        /// an occupant reference (e.g. existing tests that only call Occupy(cell)).
+        /// </summary>
+        public bool TryGetOccupant(Vector2Int cell, out GameObject occupant)
+        {
+            if (!IsOccupied(cell))
+            {
+                occupant = null;
+                return false;
+            }
+
+            occupant = occupants[cell.x, cell.y];
+            return occupant != null;
         }
 
         /// <summary>

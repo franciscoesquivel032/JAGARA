@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using Jagara.Runtime.Data;
 using Jagara.Runtime.DungeonGen;
 using Jagara.Runtime.Gameplay;
 using Jagara.Runtime.TurnSystem;
@@ -32,6 +33,7 @@ namespace Jagara.Tests.EditMode
         private FloorData floor;
         private TileType[,] terrain;
         private TurnResolver resolver;
+        private PlayerStatsSO playerStats;
         private EnemyAIContext context;
 
         [SetUp]
@@ -50,7 +52,8 @@ namespace Jagara.Tests.EditMode
             playerMover.Initialize(floor, tilemap, new Vector2Int(0, 0), occupancy);
 
             resolver = new TurnResolver();
-            context = new EnemyAIContext(floor, occupancy, resolver, playerMover);
+            playerStats = ScriptableObject.CreateInstance<PlayerStatsSO>();
+            context = new EnemyAIContext(floor, occupancy, resolver, playerMover, playerStats);
         }
 
         [TearDown]
@@ -58,6 +61,7 @@ namespace Jagara.Tests.EditMode
         {
             Object.DestroyImmediate(playerMoverGO);
             Object.DestroyImmediate(tilemapGO);
+            Object.DestroyImmediate(playerStats);
         }
 
         [Test]

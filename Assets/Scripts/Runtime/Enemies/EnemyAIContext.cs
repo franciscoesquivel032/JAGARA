@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Jagara.Runtime.Data;
 using Jagara.Runtime.DungeonGen;
 using Jagara.Runtime.Gameplay;
 using Jagara.Runtime.TurnSystem;
@@ -25,16 +26,18 @@ namespace Jagara.Runtime.Enemies
         private readonly OccupancyGrid occupancy;
         private readonly TurnResolver resolver;
         private readonly GridMover playerMover;
+        private readonly PlayerStatsSO playerStats;
         private readonly DistanceField distanceField;
 
         private int lastComputedTurn = NeverComputedTurn;
 
-        public EnemyAIContext(FloorData floor, OccupancyGrid occupancy, TurnResolver resolver, GridMover playerMover)
+        public EnemyAIContext(FloorData floor, OccupancyGrid occupancy, TurnResolver resolver, GridMover playerMover, PlayerStatsSO playerStats)
         {
             this.floor = floor;
             this.occupancy = occupancy;
             this.resolver = resolver;
             this.playerMover = playerMover;
+            this.playerStats = playerStats;
 
             int width = floor.Grid.GetLength(0);
             int height = floor.Grid.GetLength(1);
@@ -43,6 +46,9 @@ namespace Jagara.Runtime.Enemies
 
         /// <summary>The player's current grid cell.</summary>
         public Vector2Int PlayerCell => playerMover.CurrentCell;
+
+        /// <summary>The player's stats (used by an adjacent enemy to resolve a bump-attack against the player).</summary>
+        public PlayerStatsSO PlayerStats => playerStats;
 
         /// <summary>The floor's terrain grid, for EnemyAILogic.TryChooseStep.</summary>
         public TileType[,] Terrain => floor.Grid;
