@@ -1,7 +1,7 @@
 using System.Collections.Generic;
+using Jagara.Runtime.Data;
 using Jagara.Runtime.TurnSystem;
 using Jagara.Runtime.UI.MenuActions;
-using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -33,7 +33,8 @@ namespace Jagara.Runtime.UI
         [SerializeField] private GameObject leftMenuRoot;
         [SerializeField] private RectTransform optionsContainer;
         [SerializeField] private RectTransform cursor;
-        [SerializeField] private TMP_Text descriptionText;
+        [SerializeField] private TextBoxController textBox;
+        [SerializeField] private GameplayInputGateSO inputGate;
 
         private InputAction toggleAction;
         private InputAction closeAction;
@@ -110,7 +111,12 @@ namespace Jagara.Runtime.UI
 
         private void Update()
         {
-            if (toggleAction.WasPressedThisFrame())
+            // While something else holds the gate (a dialogue), the menu may not
+            // be opened - but an already-open menu can still close itself, which
+            // is why this only suppresses opening.
+            bool blockedByOther = inputGate != null && inputGate.IsBlocked && !IsOpen;
+
+            if (!blockedByOther && toggleAction.WasPressedThisFrame())
             {
                 Toggle();
             }
@@ -179,8 +185,18 @@ namespace Jagara.Runtime.UI
 
         public void Open()
         {
+            if (IsOpen)
+            {
+                return;
+            }
+
             actionMenuRoot.SetActive(true);
             IsOpen = true;
+
+            // Guarded by the IsOpen checks in Open/Close so the push/pop pair stays
+            // balanced no matter which of the several paths into Close() runs.
+            inputGate?.PushBlock();
+
             selectedIndex = 0;
             LayoutRebuilder.ForceRebuildLayoutImmediate(optionsContainer);
             UpdateCursorPosition();
@@ -189,14 +205,24 @@ namespace Jagara.Runtime.UI
 
         public void Close()
         {
+            if (!IsOpen)
+            {
+                return;
+            }
+
             actionMenuRoot.SetActive(false);
             IsOpen = false;
             subPanelWasOpen = false;
+            inputGate?.PopBlock();
 
             if (leftMenuRoot != null)
             {
                 leftMenuRoot.SetActive(false);
             }
+
+            // Hand the text box back to the action log - the menu no longer has
+            // an option under the cursor to describe.
+            textBox?.ClearDescription();
         }
 
         public void Initialize(TurnResolver resolver)
@@ -231,7 +257,7 @@ namespace Jagara.Runtime.UI
 
         private void UpdateDescription()
         {
-            descriptionText.text = optionActions[selectedIndex]?.Description ?? string.Empty;
+            textBox?.SetDescription(optionActions[selectedIndex]?.Description ?? string.Empty);
         }
     }
 }

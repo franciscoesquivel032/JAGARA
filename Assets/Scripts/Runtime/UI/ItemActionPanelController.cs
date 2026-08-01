@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Jagara.Runtime.Gameplay;
 using Jagara.Runtime.UI.MenuActions;
-using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -26,7 +25,7 @@ namespace Jagara.Runtime.UI
         [SerializeField] private InputActionAsset controlsAsset;
         [SerializeField] private RectTransform optionsContainer;
         [SerializeField] private RectTransform cursor;
-        [SerializeField] private TMP_Text descriptionText;
+        [SerializeField] private TextBoxController textBox;
 
         private InputAction navigateUpAction;
         private InputAction navigateDownAction;
@@ -105,10 +104,7 @@ namespace Jagara.Runtime.UI
         /// </summary>
         public void ShowMessage(string message)
         {
-            if (descriptionText != null)
-            {
-                descriptionText.text = message;
-            }
+            textBox?.SetDescription(message);
         }
 
         private void Update()
@@ -153,10 +149,7 @@ namespace Jagara.Runtime.UI
 
         private void UpdateDescription()
         {
-            if (descriptionText != null)
-            {
-                descriptionText.text = optionActions[selectedIndex]?.Description ?? string.Empty;
-            }
+            textBox?.SetDescription(optionActions[selectedIndex]?.Description ?? string.Empty);
         }
     }
 }

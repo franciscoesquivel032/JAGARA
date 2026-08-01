@@ -34,7 +34,7 @@ namespace Jagara.Runtime.UI
         [SerializeField] private InputActionAsset controlsAsset;
         [SerializeField] private ScrollRect scrollRect;
         [SerializeField] private RectTransform cursor;
-        [SerializeField] private TMP_Text descriptionText;
+        [SerializeField] private TextBoxController textBox;
         [SerializeField] private SlotRow[] slotRows;
         [SerializeField] private ItemActionPanelController itemActionPanel;
 
@@ -90,6 +90,16 @@ namespace Jagara.Runtime.UI
             if (inventory != null)
             {
                 inventory.OnInventoryChanged -= Refresh;
+            }
+
+            // The Item Action Panel is a Canvas sibling, not a child of this
+            // GameObject - closing the Bag by any path (its own Cancel, or
+            // ActionMenuController.Close() via Escape/Cancel/ToggleMenu) would
+            // otherwise leave it active and visible with no parent panel to
+            // return to.
+            if (itemActionPanel != null)
+            {
+                itemActionPanel.Close();
             }
         }
 
@@ -272,19 +282,19 @@ namespace Jagara.Runtime.UI
 
         private void UpdateDescription()
         {
-            if (descriptionText == null)
+            if (textBox == null)
             {
                 return;
             }
 
             if (inventory == null || occupiedSlotIndices.Count == 0)
             {
-                descriptionText.text = EmptyInventoryDescription;
+                textBox.SetDescription(EmptyInventoryDescription);
                 return;
             }
 
             ItemSO selected = inventory.Slots[occupiedSlotIndices[selectedPosition]];
-            descriptionText.text = selected.Description;
+            textBox.SetDescription(selected.Description);
         }
 
         private static readonly Vector3[] CornersBuffer = new Vector3[4];

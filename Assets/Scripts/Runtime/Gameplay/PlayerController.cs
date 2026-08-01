@@ -4,8 +4,8 @@ using UnityEngine.InputSystem;
 using UnityEngine.Tilemaps;
 using Jagara.Runtime.Data;
 using Jagara.Runtime.DungeonGen;
+using Jagara.Runtime.Narrative;
 using Jagara.Runtime.TurnSystem;
-using Jagara.Runtime.UI;
 
 namespace Jagara.Runtime.Gameplay
 {
@@ -21,11 +21,19 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private InputActionAsset controlsAsset;
         [SerializeField] private InventorySO inventory;
 
+        [Tooltip("Blocks movement while a menu or dialogue is on screen. A ScriptableObject so the prefab can hold it - scene objects can't be serialized here.")]
+        [SerializeField] private GameplayInputGateSO inputGate;
+
+        [Header("Log messages")]
+        [SerializeField] private MessageLogSO messageLog;
+        [SerializeField] private MessageTemplateSO itemPickedUpMessage;
+        [SerializeField] private MessageTemplateSO inventoryFullMessage;
+        [SerializeField] private MessageTemplateSO itemDroppedMessage;
+
         public GridMover Mover => mover;
 
         private InputAction moveAction;
         private TurnResolver turnResolver;
-        private ActionMenuController actionMenu;
         private Dictionary<Vector2Int, ItemMarker> itemsOnFloor;
         private Tilemap tilemap;
         private GameObject itemPrefab;
@@ -38,6 +46,11 @@ namespace Jagara.Runtime.Gameplay
             if (inventory == null)
             {
                 Debug.LogError($"PlayerController on {name}: inventory reference is not assigned; picked-up items will be lost.");
+            }
+
+            if (inputGate == null)
+            {
+                Debug.LogError($"PlayerController on {name}: inputGate reference is not assigned; the player will keep moving while menus and dialogue are open.");
             }
         }
 
@@ -53,10 +66,9 @@ namespace Jagara.Runtime.Gameplay
             mover.OnMoveCompleted -= HandleMoveCompleted;
         }
 
-        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy, ActionMenuController menu, Dictionary<Vector2Int, ItemMarker> itemsOnFloor, GameObject itemPrefab)
+        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy, Dictionary<Vector2Int, ItemMarker> itemsOnFloor, GameObject itemPrefab)
         {
             turnResolver = resolver;
-            actionMenu = menu;
             this.itemsOnFloor = itemsOnFloor;
             this.tilemap = tilemap;
             this.itemPrefab = itemPrefab;
@@ -65,7 +77,7 @@ namespace Jagara.Runtime.Gameplay
 
         private void Update()
         {
-            if (mover.IsMoving || (turnResolver != null && turnResolver.IsResolving) || (actionMenu != null && actionMenu.IsOpen))
+            if (mover.IsMoving || (turnResolver != null && turnResolver.IsResolving) || (inputGate != null && inputGate.IsBlocked))
             {
                 return;
             }
@@ -87,7 +99,9 @@ namespace Jagara.Runtime.Gameplay
         /// Auto-pickup on tile entry, per the GDD: an item on the tile the player
         /// just stepped onto is added to the inventory with no separate action.
         /// If the inventory is full, the item is simply left on the floor - no
-        /// drop/swap prompt (that would be a design addition beyond this task).
+        /// drop/swap prompt (that would be a design addition beyond this task) -
+        /// but the player is told why, since a silent failure is indistinguishable
+        /// from the pickup not being implemented.
         /// </summary>
         private void TryPickUpItem()
         {
@@ -101,13 +115,31 @@ namespace Jagara.Runtime.Gameplay
                 return;
             }
 
-            if (!inventory.TryAddItem(marker.Item))
+            ItemSO item = marker.Item;
+            if (!inventory.TryAddItem(item))
             {
+                Post(inventoryFullMessage, StyledName.Item(item.DisplayName));
                 return;
             }
 
             itemsOnFloor.Remove(mover.CurrentCell);
             Destroy(marker.gameObject);
+            Post(itemPickedUpMessage, StyledName.Item(item.DisplayName));
+        }
+
+        /// <summary>
+        /// Posts a log message if this player has a log wired up. Logging is
+        /// optional wiring, not a hard dependency - a missing log should cost the
+        /// player a line of text, not break movement or pickups.
+        /// </summary>
+        private void Post(MessageTemplateSO template, params object[] args)
+        {
+            if (messageLog == null || template == null)
+            {
+                return;
+            }
+
+            messageLog.Post(template, args);
         }
 
         /// <summary>
@@ -154,6 +186,7 @@ namespace Jagara.Runtime.Gameplay
             marker.Initialize(item);
             itemsOnFloor[cell] = marker;
             inventory.RemoveAt(slotIndex);
+            Post(itemDroppedMessage, StyledName.Item(item.DisplayName));
             return true;
         }
     }

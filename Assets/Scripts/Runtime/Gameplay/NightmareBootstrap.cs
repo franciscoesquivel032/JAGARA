@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Jagara.Runtime.Data;
 using Jagara.Runtime.DungeonGen;
 using Jagara.Runtime.Enemies;
+using Jagara.Runtime.Narrative;
 using Jagara.Runtime.TurnSystem;
 using Jagara.Runtime.UI;
 using UnityEngine;
@@ -26,6 +27,11 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private ActionMenuController actionMenu;
         [SerializeField] private ItemActionPanelController itemActionPanel;
 
+        [Header("Narrative")]
+        [SerializeField] private GameplayInputGateSO inputGate;
+        [SerializeField] private MessageLogSO messageLog;
+        [SerializeField] private MessageTemplateSO floorEnteredMessage;
+
         private readonly TurnResolver turnResolver = new TurnResolver();
         private readonly Dictionary<Vector2Int, ItemMarker> itemsOnFloor = new();
         private OccupancyGrid occupancy;
@@ -33,6 +39,13 @@ namespace Jagara.Runtime.Gameplay
 
         private void Start()
         {
+            // Both survive Play Mode sessions and scene loads (they're assets), so
+            // a new floor has to start from a clean log and an open input gate -
+            // otherwise the previous run's messages and any block left behind by a
+            // panel destroyed mid-transition would carry over.
+            messageLog?.Clear();
+            inputGate?.ResetGate();
+
             if (generationParams == null)
             {
                 Debug.LogError("NightmareBootstrap: generationParams reference is not assigned.");
@@ -72,6 +85,12 @@ namespace Jagara.Runtime.Gameplay
 
             aiContext = new EnemyAIContext(floor, occupancy, turnResolver, playerMover);
             SpawnEnemies(floor);
+
+            // Posted last so it isn't immediately buried by anything spawning does.
+            if (messageLog != null && floorEnteredMessage != null)
+            {
+                messageLog.Post(floorEnteredMessage);
+            }
         }
 
         private void ApplyFog()
@@ -118,13 +137,13 @@ namespace Jagara.Runtime.Gameplay
 
             if (actionMenu == null)
             {
-                Debug.LogWarning("NightmareBootstrap: actionMenu reference is not assigned; player movement will not be blocked while the action menu is open.");
+                Debug.LogWarning("NightmareBootstrap: actionMenu reference is not assigned; the player will have no action menu.");
             }
 
             actionMenu?.Initialize(turnResolver);
             itemActionPanel?.Initialize(controller);
 
-            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, actionMenu, itemsOnFloor, itemPrefab);
+            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, itemsOnFloor, itemPrefab);
 
             if (cameraFollow != null)
             {

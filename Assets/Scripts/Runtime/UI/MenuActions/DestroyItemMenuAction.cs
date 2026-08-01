@@ -1,4 +1,5 @@
 using Jagara.Runtime.Data;
+using Jagara.Runtime.Narrative;
 using UnityEngine;
 
 namespace Jagara.Runtime.UI.MenuActions
@@ -13,12 +14,23 @@ namespace Jagara.Runtime.UI.MenuActions
         [SerializeField] private InventorySO inventory;
         [SerializeField] private ItemActionPanelController itemActionPanel;
         [SerializeField] private string description;
+        [SerializeField] private MessageLogSO messageLog;
+        [SerializeField] private MessageTemplateSO itemDestroyedMessage;
 
         public string Description => description;
 
         public void Execute()
         {
-            inventory.RemoveAt(itemActionPanel.SelectedSlotIndex);
+            // Read the item before removing it - the slot is null afterwards, and
+            // the message needs its display name.
+            int slotIndex = itemActionPanel.SelectedSlotIndex;
+            ItemSO item = slotIndex >= 0 && slotIndex < inventory.Slots.Count ? inventory.Slots[slotIndex] : null;
+
+            if (inventory.RemoveAt(slotIndex) && messageLog != null && item != null)
+            {
+                messageLog.Post(itemDestroyedMessage, StyledName.Item(item.DisplayName));
+            }
+
             itemActionPanel.Close();
         }
     }
