@@ -38,6 +38,12 @@ namespace Jagara.Runtime.UI
         [SerializeField] private SlotRow[] slotRows;
         [SerializeField] private ItemActionPanelController itemActionPanel;
 
+        [Tooltip("How many rows the Scroll View's viewport is sized to frame at once. " +
+                 "The viewport's height must equal visibleRowCount*rowHeight + " +
+                 "(visibleRowCount-1)*spacing + top/bottom padding of the Slots layout group, " +
+                 "otherwise a row ends up half-clipped at one edge.")]
+        [SerializeField] private int visibleRowCount = 4;
+
         private InputAction navigateUpAction;
         private InputAction navigateDownAction;
         private InputAction confirmAction;
@@ -48,6 +54,11 @@ namespace Jagara.Runtime.UI
         // through raw slot indices, so empty slots are never selectable.
         private readonly List<int> occupiedSlotIndices = new();
         private int selectedPosition;
+
+        // Position (not raw slot index) of the row currently framed at the top of
+        // the viewport. The scroll offset is always exactly this many row pitches,
+        // which is what keeps whole rows - never slivers - inside the viewport.
+        private int firstVisiblePosition;
 
         // Mirrors ActionMenuController's own subPanelWasOpen flag: while the
         // Item Action Panel is active, Navigate/Confirm/Cancel are yielded to
@@ -82,6 +93,7 @@ namespace Jagara.Runtime.UI
             }
 
             selectedPosition = 0;
+            firstVisiblePosition = 0;
             Refresh();
         }
 
@@ -297,43 +309,56 @@ namespace Jagara.Runtime.UI
             textBox.SetDescription(selected.Description);
         }
 
-        private static readonly Vector3[] CornersBuffer = new Vector3[4];
-
         /// <summary>
-        /// Scrolls just enough to bring the selected row fully into the viewport -
-        /// zero movement while the selection is already visible, unlike a naive
-        /// index-based normalized-position remap (which shifts the whole list on
-        /// every step and reads as "the scroll moves" rather than "the cursor moves").
+        /// Scrolls in whole-row steps: the content is only ever offset by an exact
+        /// multiple of the row pitch, so the viewport always frames visibleRowCount
+        /// complete rows - stepping past the last visible one hides the row at the
+        /// opposite edge entirely instead of leaving a clipped sliver of it.
+        /// <para>
+        /// Deliberately not the "scroll by the minimum distance that brings the
+        /// selected row into view" approach this replaced: that lands on whatever
+        /// offset happens to expose the row's far edge, which is only a whole number
+        /// of rows when the viewport height, spacing and padding line up exactly -
+        /// and when they don't, every step leaves a few pixels of the previous row
+        /// showing over the panel border.
+        /// </para>
+        /// Driven entirely by positions, so it behaves identically for 5 rows and 25.
         /// </summary>
         private void UpdateScroll()
         {
-            if (scrollRect == null || scrollRect.viewport == null || scrollRect.content == null || occupiedSlotIndices.Count == 0)
+            if (scrollRect == null || scrollRect.content == null || occupiedSlotIndices.Count == 0)
             {
                 return;
             }
 
-            Canvas.ForceUpdateCanvases();
+            // Pull the framed window just far enough to contain the selection, then
+            // clamp it to the list so the last page can't scroll past the final row.
+            firstVisiblePosition = Mathf.Clamp(firstVisiblePosition, selectedPosition - visibleRowCount + 1, selectedPosition);
+            firstVisiblePosition = Mathf.Clamp(firstVisiblePosition, 0, Mathf.Max(0, occupiedSlotIndices.Count - visibleRowCount));
 
-            RectTransform viewport = scrollRect.viewport;
             RectTransform content = scrollRect.content;
-            RectTransform row = slotRows[occupiedSlotIndices[selectedPosition]].rect;
+            content.anchoredPosition = new Vector2(content.anchoredPosition.x, firstVisiblePosition * GetRowPitch());
+        }
 
-            row.GetWorldCorners(CornersBuffer);
-            float rowTop = CornersBuffer[1].y;
-            float rowBottom = CornersBuffer[0].y;
-
-            viewport.GetWorldCorners(CornersBuffer);
-            float viewTop = CornersBuffer[1].y;
-            float viewBottom = CornersBuffer[0].y;
-
-            if (rowTop > viewTop)
+        /// <summary>
+        /// Vertical distance between the top edges of two consecutive rows (row
+        /// height + the layout group's spacing), measured from the rows as actually
+        /// laid out rather than duplicated here as serialized constants - so
+        /// retuning the VerticalLayoutGroup's spacing or the rows' LayoutElement
+        /// height in the Editor keeps the scroll steps correct automatically.
+        /// Callers only reach this after Refresh() has forced a layout rebuild.
+        /// </summary>
+        private float GetRowPitch()
+        {
+            if (occupiedSlotIndices.Count < 2)
             {
-                content.anchoredPosition -= new Vector2(0f, rowTop - viewTop);
+                // A single row always fits, so the pitch is never applied anyway.
+                return 0f;
             }
-            else if (rowBottom < viewBottom)
-            {
-                content.anchoredPosition += new Vector2(0f, viewBottom - rowBottom);
-            }
+
+            float first = slotRows[occupiedSlotIndices[0]].rect.anchoredPosition.y;
+            float second = slotRows[occupiedSlotIndices[1]].rect.anchoredPosition.y;
+            return Mathf.Abs(second - first);
         }
     }
 }
