@@ -11,7 +11,8 @@ namespace Jagara.Runtime.Data
     /// now: the GDD's permanent hub stat-point allocation UI doesn't exist yet
     /// ([PENDIENTE] - flag any future change here as design-relevant). Health
     /// and Paranoia are runtime state rebuilt in OnEnable, the same way
-    /// InventorySO rebuilds its slots.
+    /// InventorySO rebuilds its slots - but OnEnable alone isn't enough here
+    /// (see ResetRuntimeState).
     /// </summary>
     [CreateAssetMenu(fileName = "New Player Stats", menuName = "Jagara/Player Stats")]
     public class PlayerStatsSO : ScriptableObject
@@ -23,9 +24,22 @@ namespace Jagara.Runtime.Data
 
         [Header("Paranoia tuning")]
         [SerializeField] private int maxParanoia = 100;
-        [SerializeField] private int baseParanoiaGainPerTurn = 3;
-        [SerializeField] private int paranoiaReductionPerVoluntadPoint = 1;
-        [SerializeField] private int minParanoiaGainPerTurn = 1;
+        [Tooltip("Turns needed to gain paranoiaPointsPerInterval, before Voluntad slowdown.")]
+        [SerializeField] private int stepsPerParanoiaPoint = 10;
+        [Tooltip("Paranoia points gained once stepsPerParanoiaPoint (+ Voluntad slowdown) turns have passed.")]
+        [SerializeField] private int paranoiaPointsPerInterval = 1;
+        [Tooltip("Extra turns required per point of Voluntad, on top of stepsPerParanoiaPoint - slows gain further.")]
+        [SerializeField] private int extraStepsPerVoluntadPoint = 1;
+
+        private int stepsSinceLastParanoiaGain;
+
+        // Accumulates every bump-attack landed on the player within a single
+        // player turn (multiple enemies can be adjacent and all attack in the
+        // same turn), so PlayerController can post one combined message
+        // instead of each attack overwriting the last in the 1-line text box.
+        private int turnDamageTaken;
+        private int turnAttackerCount;
+        private string lastAttackerName;
 
         public int Poder => poder;
         public int Voluntad => voluntad;
@@ -35,19 +49,73 @@ namespace Jagara.Runtime.Data
 
         private void OnEnable()
         {
-            Health = new HealthState(StatFormulas.ComputeMaxHP(vigor));
-            Paranoia = new ParanoiaState(maxParanoia);
+            ResetRuntimeState();
         }
 
         /// <summary>
-        /// Applies one turn's worth of Paranoia gain, per the GDD's "Voluntad
-        /// slows Paranoia gain" rule: gain = max(minGain, baseGain - Voluntad
-        /// * reductionPerPoint). Called once per resolved player turn.
+        /// Rebuilds Health/Paranoia from scratch. OnEnable covers a real domain
+        /// reload, but this asset survives Play Mode sessions when "Enter Play
+        /// Mode Options" has domain reload disabled - OnEnable then does NOT
+        /// re-run between sessions, so a stale HP/Paranoia value (sometimes
+        /// already 0/dead) would otherwise carry over into a "fresh" run.
+        /// NightmareBootstrap.Start() calls this explicitly for that reason,
+        /// mirroring messageLog.Clear()/inputGate.ResetGate() there.
+        /// </summary>
+        public void ResetRuntimeState()
+        {
+            Health = new HealthState(StatFormulas.ComputeMaxHP(vigor));
+            Paranoia = new ParanoiaState(maxParanoia);
+            stepsSinceLastParanoiaGain = 0;
+            turnDamageTaken = 0;
+            turnAttackerCount = 0;
+            lastAttackerName = null;
+        }
+
+        /// <summary>Records one enemy's bump-attack against the player. Called by EnemyController; the damage itself is already applied to Health by the time this runs.</summary>
+        public void RecordIncomingAttack(string attackerName, int damage)
+        {
+            turnDamageTaken += damage;
+            turnAttackerCount++;
+            lastAttackerName = attackerName;
+        }
+
+        /// <summary>
+        /// Returns this turn's accumulated incoming-attack data and clears it for
+        /// the next turn. Called once per player turn (see
+        /// PlayerController.HandleTurnEnded). Returns false (no message to post)
+        /// if nothing attacked the player this turn.
+        /// </summary>
+        public bool TryConsumeTurnDamage(out int totalDamage, out int attackerCount, out string lastAttacker)
+        {
+            totalDamage = turnDamageTaken;
+            attackerCount = turnAttackerCount;
+            lastAttacker = lastAttackerName;
+
+            turnDamageTaken = 0;
+            turnAttackerCount = 0;
+            lastAttackerName = null;
+
+            return attackerCount > 0;
+        }
+
+        /// <summary>
+        /// Counts one turn towards the next Paranoia gain, per the GDD's
+        /// "Voluntad slows Paranoia gain" rule: every (stepsPerParanoiaPoint +
+        /// Voluntad * extraStepsPerVoluntadPoint) turns, Paranoia gains
+        /// paranoiaPointsPerInterval points. Called once per resolved player turn.
         /// </summary>
         public void ApplyTurnParanoiaGain()
         {
-            int gain = Mathf.Max(minParanoiaGainPerTurn, baseParanoiaGainPerTurn - voluntad * paranoiaReductionPerVoluntadPoint);
-            Paranoia.Gain(gain);
+            stepsSinceLastParanoiaGain++;
+
+            int stepsNeeded = Mathf.Max(1, stepsPerParanoiaPoint + voluntad * extraStepsPerVoluntadPoint);
+            if (stepsSinceLastParanoiaGain < stepsNeeded)
+            {
+                return;
+            }
+
+            stepsSinceLastParanoiaGain = 0;
+            Paranoia.Gain(paranoiaPointsPerInterval);
         }
     }
 }

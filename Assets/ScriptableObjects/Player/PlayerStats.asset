@@ -16,6 +16,6 @@ MonoBehaviour:
   poder: 3
   voluntad: 2
   maxParanoia: 100
-  baseParanoiaGainPerTurn: 3
-  paranoiaReductionPerVoluntadPoint: 1
-  minParanoiaGainPerTurn: 1
+  stepsPerParanoiaPoint: 10
+  paranoiaPointsPerInterval: 1
+  extraStepsPerVoluntadPoint: 1

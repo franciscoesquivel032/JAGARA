@@ -4,7 +4,6 @@ using Jagara.Runtime.Combat;
 using Jagara.Runtime.Data;
 using Jagara.Runtime.DungeonGen;
 using Jagara.Runtime.Gameplay;
-using Jagara.Runtime.Narrative;
 using Jagara.Runtime.Resources;
 using Jagara.Runtime.TurnSystem;
 
@@ -20,10 +19,6 @@ namespace Jagara.Runtime.Enemies
     [RequireComponent(typeof(GridMover))]
     public class EnemyController : MonoBehaviour, ITurnActor
     {
-        [Header("Log messages")]
-        [SerializeField] private MessageLogSO messageLog;
-        [SerializeField] private MessageTemplateSO attackMessage;
-
         private GridMover mover;
         private SpriteRenderer spriteRenderer;
         private GridVisualAnimator visualAnimator;
@@ -165,18 +160,19 @@ namespace Jagara.Runtime.Enemies
         }
 
         /// <summary>
-        /// Resolves a basic bump-attack against the player's HealthState. The
-        /// player's own death handling (message, input freeze) is owned by
-        /// PlayerController via its HealthState.OnDeath subscription, not here.
+        /// Resolves a basic bump-attack against the player's HealthState and
+        /// records it against PlayerStatsSO's turn accumulator rather than
+        /// posting a message directly - multiple enemies can be adjacent and
+        /// attack in the same player turn, and PlayerController posts one
+        /// combined message once the turn is fully resolved (see
+        /// PlayerController.HandleTurnEnded). The player's own death handling
+        /// (message, input freeze) is owned by PlayerController via its
+        /// HealthState.OnDeath subscription, not here.
         /// </summary>
         private void PerformAttack()
         {
             CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(config.Poder, context.PlayerStats.Health);
-
-            if (messageLog != null && attackMessage != null)
-            {
-                messageLog.Post(attackMessage, StyledName.Enemy(config.DisplayName), result.Damage);
-            }
+            context.PlayerStats.RecordIncomingAttack(config.DisplayName, result.Damage);
         }
 
         /// <summary>

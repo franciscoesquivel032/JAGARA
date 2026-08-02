@@ -8,6 +8,7 @@ using Jagara.Runtime.DungeonGen;
 using Jagara.Runtime.Enemies;
 using Jagara.Runtime.Narrative;
 using Jagara.Runtime.TurnSystem;
+using Jagara.Runtime.UI;
 
 namespace Jagara.Runtime.Gameplay
 {
@@ -35,9 +36,14 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private MessageTemplateSO attackMessage;
         [SerializeField] private MessageTemplateSO enemyDefeatedMessage;
         [SerializeField] private MessageTemplateSO playerDefeatedMessage;
+        [SerializeField] private MessageTemplateSO incomingAttackMessage;
+        [SerializeField] private MessageTemplateSO incomingMultiAttackMessage;
 
         public GridMover Mover => mover;
         public PlayerStatsSO Stats => stats;
+
+        private HealthBarBinder healthBarBinder;
+        private ParanoiaBarBinder paranoiaBarBinder;
 
         private InputAction moveAction;
         private TurnResolver turnResolver;
@@ -50,6 +56,19 @@ namespace Jagara.Runtime.Gameplay
         {
             var map = controlsAsset.FindActionMap("Gameplay", throwIfNotFound: true);
             moveAction = map.FindAction("Move", throwIfNotFound: true);
+
+            healthBarBinder = GetComponentInChildren<HealthBarBinder>();
+            paranoiaBarBinder = GetComponentInChildren<ParanoiaBarBinder>();
+
+            if (healthBarBinder == null)
+            {
+                Debug.LogError($"PlayerController on {name}: no HealthBarBinder found in children; the player will have no health bar.");
+            }
+
+            if (paranoiaBarBinder == null)
+            {
+                Debug.LogError($"PlayerController on {name}: no ParanoiaBarBinder found in children; the player will have no paranoia bar.");
+            }
 
             if (inventory == null)
             {
@@ -75,6 +94,8 @@ namespace Jagara.Runtime.Gameplay
             if (stats != null)
             {
                 stats.Health.OnDeath += HandleDeath;
+                healthBarBinder?.Bind(stats.Health);
+                paranoiaBarBinder?.Bind(stats.Paranoia);
             }
         }
 
@@ -86,6 +107,8 @@ namespace Jagara.Runtime.Gameplay
             if (stats != null)
             {
                 stats.Health.OnDeath -= HandleDeath;
+                healthBarBinder?.Unbind();
+                paranoiaBarBinder?.Unbind();
             }
 
             if (turnResolver != null)
@@ -156,10 +179,35 @@ namespace Jagara.Runtime.Gameplay
             turnResolver?.EndPlayerTurn();
         }
 
-        /// <summary>Applies one turn's worth of Paranoia gain. Fires from every player action that ends a turn (move, bump-attack, item use).</summary>
+        /// <summary>Applies one turn's worth of Paranoia gain and posts a combined incoming-attack message. Fires from every player action that ends a turn (move, bump-attack, item use).</summary>
         private void HandleTurnEnded()
         {
             stats?.ApplyTurnParanoiaGain();
+            PostIncomingAttackMessage();
+        }
+
+        /// <summary>
+        /// Posts a single message summarizing every enemy bump-attack landed on
+        /// the player this turn (see PlayerStatsSO.RecordIncomingAttack) - one
+        /// line per turn regardless of how many enemies were adjacent, since the
+        /// text box only shows its most recent line and would otherwise make it
+        /// look like only the last attacker's damage was taken.
+        /// </summary>
+        private void PostIncomingAttackMessage()
+        {
+            if (stats == null || !stats.TryConsumeTurnDamage(out int totalDamage, out int attackerCount, out string lastAttacker))
+            {
+                return;
+            }
+
+            if (attackerCount == 1)
+            {
+                Post(incomingAttackMessage, StyledName.Enemy(lastAttacker), totalDamage);
+            }
+            else
+            {
+                Post(incomingMultiAttackMessage, attackerCount, totalDamage);
+            }
         }
 
         /// <summary>

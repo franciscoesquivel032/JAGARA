@@ -1,3 +1,4 @@
+using System.Text;
 using NUnit.Framework;
 using TMPro;
 using UnityEngine;
@@ -10,20 +11,30 @@ namespace Jagara.Tests.EditMode
     /// The text box is written to by four unrelated things (three menus and the
     /// action log), so the arbitration between them is the whole point of the
     /// class. These tests drive it through its public API and read back what the
-    /// label actually ends up showing.
+    /// box actually ends up showing.
+    ///
+    /// Descriptions and the log land in different places now: a description goes
+    /// to the single <see cref="label"/>, while the log is spread over one
+    /// LogLineView slot per line so each can carry its own opacity. The log is
+    /// therefore read back through <see cref="ReadLogLines"/>.
     ///
     /// The time-based clearing in Update() is not covered here: Edit Mode never
-    /// pumps Update and Time.time does not advance, so that path belongs to
-    /// manual Play Mode verification.
+    /// pumps Update and Time.time does not advance, so that path - along with the
+    /// slide, fade and height animations it drives - belongs to manual Play Mode
+    /// verification. The animation math itself is covered by TextBoxAnimatorTests.
     /// </summary>
     public class TextBoxControllerTests
     {
+        private const int VisibleLineCount = 3;
+
         private GameObject go;
         private TMP_Text label;
         private CanvasGroup canvasGroup;
         private TextBoxController textBox;
         private MessageLogSO log;
         private MessageTemplateSO template;
+        private LogLineView[] slots;
+        private GameObject lineContainer;
 
         [SetUp]
         public void SetUp()
@@ -34,13 +45,24 @@ namespace Jagara.Tests.EditMode
             var labelGO = new GameObject("Label", typeof(RectTransform));
             label = labelGO.AddComponent<TextMeshProUGUI>();
 
+            // One more slot than visible lines: slot 0 is the outgoing line.
+            lineContainer = new GameObject("Log Lines", typeof(RectTransform));
+            slots = new LogLineView[VisibleLineCount + 1];
+            for (int i = 0; i < slots.Length; i++)
+            {
+                slots[i] = CreateSlot($"Log Line {i}");
+                slots[i].transform.SetParent(lineContainer.transform, false);
+            }
+
             go = new GameObject("Text Box", typeof(RectTransform));
             canvasGroup = go.AddComponent<CanvasGroup>();
             textBox = go.AddComponent<TextBoxController>();
             MessageTemplateSOTests.SetPrivateField(textBox, "label", label);
             MessageTemplateSOTests.SetPrivateField(textBox, "messageLog", log);
             MessageTemplateSOTests.SetPrivateField(textBox, "canvasGroup", canvasGroup);
-            MessageTemplateSOTests.SetPrivateField(textBox, "visibleLineCount", 3);
+            MessageTemplateSOTests.SetPrivateField(textBox, "lineContainer", lineContainer.GetComponent<RectTransform>());
+            MessageTemplateSOTests.SetPrivateField(textBox, "logLines", slots);
+            MessageTemplateSOTests.SetPrivateField(textBox, "visibleLineCount", VisibleLineCount);
 
             // Outside Play Mode, AddComponent/SetActive do not invoke OnEnable for
             // a plain MonoBehaviour - the same limitation EnemyControllerTests
@@ -56,6 +78,7 @@ namespace Jagara.Tests.EditMode
             InvokeLifecycle("OnDisable");
             Object.DestroyImmediate(go);
             Object.DestroyImmediate(label.gameObject);
+            Object.DestroyImmediate(lineContainer);
             Object.DestroyImmediate(log);
             Object.DestroyImmediate(template);
         }
@@ -64,6 +87,7 @@ namespace Jagara.Tests.EditMode
         public void StartsEmptyAndHidden()
         {
             Assert.AreEqual(string.Empty, label.text);
+            Assert.AreEqual(string.Empty, ReadLogLines());
             Assert.AreEqual(0f, canvasGroup.alpha, "with nothing to say the box must not be on screen");
         }
 
@@ -112,7 +136,7 @@ namespace Jagara.Tests.EditMode
         {
             log.Post(template, "You picked up the Nostalgia Fragment.");
 
-            Assert.AreEqual("You picked up the Nostalgia Fragment.", label.text);
+            Assert.AreEqual("You picked up the Nostalgia Fragment.", ReadLogLines());
         }
 
         [Test]
@@ -121,7 +145,7 @@ namespace Jagara.Tests.EditMode
             log.Post(template, "one");
             log.Post(template, "two");
 
-            Assert.AreEqual("one\ntwo", label.text);
+            Assert.AreEqual("one\ntwo", ReadLogLines());
         }
 
         [Test]
@@ -132,7 +156,31 @@ namespace Jagara.Tests.EditMode
             log.Post(template, "three");
             log.Post(template, "four");
 
-            Assert.AreEqual("two\nthree\nfour", label.text);
+            Assert.AreEqual("two\nthree\nfour", ReadLogLines());
+        }
+
+        [Test]
+        public void MessageThatPushesALineOut_PutsItInTheOutgoingSlot()
+        {
+            log.Post(template, "one");
+            log.Post(template, "two");
+            log.Post(template, "three");
+
+            log.Post(template, "four");
+
+            // Slot 0 renders the displaced line while the stack slides up, so the
+            // player sees it leave rather than blink out of existence.
+            Assert.AreEqual("one", slots[0].Text);
+        }
+
+        [Test]
+        public void MessageThatFitsInTheWindow_LeavesTheOutgoingSlotEmpty()
+        {
+            log.Post(template, "one");
+            log.Post(template, "two");
+
+            Assert.AreEqual(string.Empty, slots[0].Text,
+                "nothing was displaced, so nothing should be sliding out of the top");
         }
 
         [Test]
@@ -143,6 +191,8 @@ namespace Jagara.Tests.EditMode
             textBox.SetDescription("Use the selected item.");
 
             Assert.AreEqual("Use the selected item.", label.text);
+            Assert.AreEqual(string.Empty, ReadLogLines(),
+                "the log must clear out of the way rather than showing through the description");
         }
 
         [Test]
@@ -153,6 +203,7 @@ namespace Jagara.Tests.EditMode
             log.Post(template, "You used the Nostalgia Fragment.");
 
             Assert.AreEqual("Use the selected item.", label.text);
+            Assert.AreEqual(string.Empty, ReadLogLines());
         }
 
         [Test]
@@ -163,7 +214,8 @@ namespace Jagara.Tests.EditMode
 
             textBox.ClearDescription();
 
-            Assert.AreEqual(string.Empty, label.text,
+            Assert.AreEqual(string.Empty, label.text);
+            Assert.AreEqual(string.Empty, ReadLogLines(),
                 "clearing the box discards what was on it - stale lines must not come back");
         }
 
@@ -175,6 +227,7 @@ namespace Jagara.Tests.EditMode
             textBox.ClearDescription();
 
             Assert.AreEqual(string.Empty, label.text);
+            Assert.AreEqual(string.Empty, ReadLogLines());
         }
 
         [Test]
@@ -186,7 +239,7 @@ namespace Jagara.Tests.EditMode
 
             log.Post(template, "fresh");
 
-            Assert.AreEqual("fresh", label.text,
+            Assert.AreEqual("fresh", ReadLogLines(),
                 "the window restarts after a clear rather than re-reading the log's history");
         }
 
@@ -200,6 +253,7 @@ namespace Jagara.Tests.EditMode
             textBox.SetDescription(string.Empty);
 
             Assert.AreEqual(string.Empty, label.text);
+            Assert.AreEqual(string.Empty, ReadLogLines());
         }
 
         [Test]
@@ -210,7 +264,7 @@ namespace Jagara.Tests.EditMode
 
             log.Post(template, "tinted");
 
-            Assert.AreEqual("<color=#FF0000>tinted</color>", label.text);
+            Assert.AreEqual("<color=#FF0000>tinted</color>", ReadLogLines());
         }
 
         [Test]
@@ -221,7 +275,48 @@ namespace Jagara.Tests.EditMode
 
             log.Post(template, "plain");
 
-            Assert.AreEqual("plain", label.text);
+            Assert.AreEqual("plain", ReadLogLines());
+        }
+
+        /// <summary>
+        /// The visible window as one string, oldest first - the shape the box used
+        /// to render into a single label, so the expectations here still read the
+        /// way the player sees them. Slot 0 is excluded: it is the outgoing line,
+        /// not part of the window.
+        /// </summary>
+        private string ReadLogLines()
+        {
+            var builder = new StringBuilder();
+            for (int slot = 1; slot < slots.Length; slot++)
+            {
+                if (string.IsNullOrEmpty(slots[slot].Text))
+                {
+                    continue;
+                }
+
+                if (builder.Length > 0)
+                {
+                    builder.Append('\n');
+                }
+
+                builder.Append(slots[slot].Text);
+            }
+
+            return builder.ToString();
+        }
+
+        private static LogLineView CreateSlot(string slotName)
+        {
+            var slotGO = new GameObject(slotName, typeof(RectTransform));
+            var slotLabel = slotGO.AddComponent<TextMeshProUGUI>();
+            var slotGroup = slotGO.AddComponent<CanvasGroup>();
+            var view = slotGO.AddComponent<LogLineView>();
+
+            // Awake does not run outside Play Mode, so the wiring the Inspector
+            // would normally provide is set by hand.
+            MessageTemplateSOTests.SetPrivateField(view, "label", slotLabel);
+            MessageTemplateSOTests.SetPrivateField(view, "canvasGroup", slotGroup);
+            return view;
         }
 
         private void InvokeLifecycle(string methodName)

@@ -19,6 +19,7 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private FloorInstantiator floorInstantiator;
         [SerializeField] private GridOverlayInstantiator gridOverlayInstantiator;
         [SerializeField] private GameObject playerPrefab;
+        [SerializeField] private PlayerStatsSO playerStats;
         [SerializeField] private GameObject enemyPrefab;
         [SerializeField] private GameObject itemPrefab;
         [SerializeField] private CameraFollow cameraFollow;
@@ -26,6 +27,7 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private FogController fogController;
         [SerializeField] private ActionMenuController actionMenu;
         [SerializeField] private ItemActionPanelController itemActionPanel;
+        [SerializeField] private PlayerStatusHudController statusHud;
 
         [Header("Narrative")]
         [SerializeField] private GameplayInputGateSO inputGate;
@@ -39,12 +41,17 @@ namespace Jagara.Runtime.Gameplay
 
         private void Start()
         {
-            // Both survive Play Mode sessions and scene loads (they're assets), so
-            // a new floor has to start from a clean log and an open input gate -
-            // otherwise the previous run's messages and any block left behind by a
-            // panel destroyed mid-transition would carry over.
+            // All three survive Play Mode sessions and scene loads (they're
+            // assets), so a new floor has to start from a clean log, an open
+            // input gate, and fresh HP/Paranoia - otherwise the previous run's
+            // messages, any block left behind by a panel destroyed mid-transition,
+            // or even a dead HealthState (Current stuck at 0, TakeDamage a no-op)
+            // would carry over. OnEnable alone doesn't cover this: with "Enter
+            // Play Mode Options" set to skip domain reload, these assets' OnEnable
+            // does not re-run between Play sessions.
             messageLog?.Clear();
             inputGate?.ResetGate();
+            playerStats?.ResetRuntimeState();
 
             if (generationParams == null)
             {
@@ -145,6 +152,7 @@ namespace Jagara.Runtime.Gameplay
             itemActionPanel?.Initialize(controller);
 
             controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, itemsOnFloor, itemPrefab);
+            statusHud?.Bind(controller.Stats.Health, controller.Stats.Paranoia);
 
             if (cameraFollow != null)
             {
