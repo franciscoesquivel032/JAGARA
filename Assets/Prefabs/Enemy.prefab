@@ -59,6 +59,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b49ce75a67b03744b4822dbb48519f2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Enemies.EnemyController
+  messageLog: {fileID: 11400000, guid: 46fd613be2ecb6d4a91abc3ef8ef287c, type: 2}
+  attackMessage: {fileID: 11400000, guid: ab404ef5e5945b94f847ad6829af97b4, type: 2}
 --- !u!1 &7601165993066632759
 GameObject:
   m_ObjectHideFlags: 0

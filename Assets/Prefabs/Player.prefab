@@ -314,8 +314,12 @@ MonoBehaviour:
   mover: {fileID: 8717283621851309385}
   controlsAsset: {fileID: -944628639613478452, guid: 496718191ca01d243827301eee3d7e35, type: 3}
   inventory: {fileID: 11400000, guid: 425e01dae15e1de4ebfe80cb0c905a0f, type: 2}
+  stats: {fileID: 11400000, guid: 6dc373cdd1775a740a4496d14c78513d, type: 2}
   inputGate: {fileID: 11400000, guid: 3a21310a9cb8f1c4f954dd755de94860, type: 2}
   messageLog: {fileID: 11400000, guid: 46fd613be2ecb6d4a91abc3ef8ef287c, type: 2}
   itemPickedUpMessage: {fileID: 11400000, guid: a1f0e9407565e284982b35b16d663bae, type: 2}
   inventoryFullMessage: {fileID: 11400000, guid: 268eecdd92ea85b4683380fcd2aecf04, type: 2}
   itemDroppedMessage: {fileID: 11400000, guid: a942eb13d417b9144854365282871db3, type: 2}
+  attackMessage: {fileID: 11400000, guid: 41bb30b914d910d468295b36c3a858ee, type: 2}
+  enemyDefeatedMessage: {fileID: 11400000, guid: 40f91c4dcf7a8a349a7ae63044fe5754, type: 2}
+  playerDefeatedMessage: {fileID: 11400000, guid: b211949719ff45742a0741ce59ac2177, type: 2}

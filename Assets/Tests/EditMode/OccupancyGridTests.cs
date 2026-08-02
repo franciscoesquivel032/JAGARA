@@ -187,5 +187,90 @@ namespace Jagara.Tests.EditMode
             Assert.IsTrue(grid.IsOccupied(new Vector2Int(2, 2)));
             Assert.IsFalse(grid.IsOccupied(new Vector2Int(3, 3)));
         }
+
+        [Test]
+        public void TryGetOccupant_ReturnsFalse_ForUnoccupiedCell()
+        {
+            bool found = grid.TryGetOccupant(new Vector2Int(5, 5), out GameObject occupant);
+
+            Assert.IsFalse(found);
+            Assert.IsNull(occupant);
+        }
+
+        [Test]
+        public void TryGetOccupant_ReturnsFalse_WhenOccupiedWithoutAnOccupantReference()
+        {
+            var cell = new Vector2Int(2, 2);
+            grid.Occupy(cell);
+
+            bool found = grid.TryGetOccupant(cell, out GameObject occupant);
+
+            Assert.IsFalse(found);
+            Assert.IsNull(occupant);
+        }
+
+        [Test]
+        public void TryGetOccupant_ReturnsTrueAndOccupant_WhenOccupiedWithAReference()
+        {
+            var cell = new Vector2Int(3, 3);
+            var entity = new GameObject("Entity");
+
+            try
+            {
+                grid.Occupy(cell, entity);
+
+                bool found = grid.TryGetOccupant(cell, out GameObject occupant);
+
+                Assert.IsTrue(found);
+                Assert.AreEqual(entity, occupant);
+            }
+            finally
+            {
+                Object.DestroyImmediate(entity);
+            }
+        }
+
+        [Test]
+        public void Move_CarriesOccupantReferenceFromSourceToDestination()
+        {
+            var from = new Vector2Int(1, 1);
+            var to = new Vector2Int(4, 4);
+            var entity = new GameObject("Entity");
+
+            try
+            {
+                grid.Occupy(from, entity);
+                grid.Move(from, to);
+
+                Assert.IsFalse(grid.TryGetOccupant(from, out _));
+                bool found = grid.TryGetOccupant(to, out GameObject occupant);
+                Assert.IsTrue(found);
+                Assert.AreEqual(entity, occupant);
+            }
+            finally
+            {
+                Object.DestroyImmediate(entity);
+            }
+        }
+
+        [Test]
+        public void Vacate_ClearsOccupantReference()
+        {
+            var cell = new Vector2Int(6, 6);
+            var entity = new GameObject("Entity");
+
+            try
+            {
+                grid.Occupy(cell, entity);
+                grid.Vacate(cell);
+
+                Assert.IsFalse(grid.TryGetOccupant(cell, out GameObject occupant));
+                Assert.IsNull(occupant);
+            }
+            finally
+            {
+                Object.DestroyImmediate(entity);
+            }
+        }
     }
 }

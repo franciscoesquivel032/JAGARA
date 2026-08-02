@@ -4,6 +4,7 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using Jagara.Runtime.Combat;
 using Jagara.Runtime.Data;
 using Jagara.Runtime.DungeonGen;
 using Jagara.Runtime.Enemies;
@@ -50,6 +51,7 @@ namespace Jagara.Tests.EditMode
 
         private EnemyConfigSO config;
         private EnemyAIContext context;
+        private PlayerStatsSO playerStats;
 
         [SetUp]
         public void SetUp()
@@ -87,6 +89,11 @@ namespace Jagara.Tests.EditMode
                 Object.DestroyImmediate(config);
             }
 
+            if (playerStats != null)
+            {
+                Object.DestroyImmediate(playerStats);
+            }
+
             Object.DestroyImmediate(tilemapGO);
         }
 
@@ -106,7 +113,8 @@ namespace Jagara.Tests.EditMode
             serialized.FindProperty("moveDuration").floatValue = 0f;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
-            context = new EnemyAIContext(floor, occupancy, resolver, playerMover);
+            playerStats = ScriptableObject.CreateInstance<PlayerStatsSO>();
+            context = new EnemyAIContext(floor, occupancy, resolver, playerMover, playerStats);
 
             enemyGO = new GameObject("Enemy");
             enemyMover = enemyGO.AddComponent<GridMover>();
@@ -178,11 +186,14 @@ namespace Jagara.Tests.EditMode
             Assert.AreEqual(new Vector2Int(1, 0), enemyMover.CurrentCell, "Precondition: enemy should have closed to adjacency after turn 1.");
 
             // Turn 2: now adjacent (distance 1) - must hold position despite
-            // still being Chasing.
+            // still being Chasing (it bump-attacks the player instead of moving).
+            int hpBeforeAttack = playerStats.Health.Current;
             controller.TakeTurn();
 
             Assert.AreEqual(new Vector2Int(1, 0), enemyMover.CurrentCell, "An adjacent Chasing enemy must not move.");
             Assert.IsFalse(enemyMover.IsMoving);
+            Assert.AreEqual(StatFormulas.ComputeAttackDamage(config.Poder), hpBeforeAttack - playerStats.Health.Current,
+                "An adjacent Chasing enemy must bump-attack the player instead of moving.");
         }
 
         [Test]
