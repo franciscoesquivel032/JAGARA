@@ -23,6 +23,9 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private GameObject enemyPrefab;
         [SerializeField] private GameObject itemPrefab;
         [SerializeField] private CameraFollow cameraFollow;
+
+        [Tooltip("Threaded into PlayerController at spawn (a scene object can't be serialized into the player prefab). Plays a small shake on player hit.")]
+        [SerializeField] private CameraShake cameraShake;
         [SerializeField] private NightmareThemeSO nightmareTheme;
         [SerializeField] private FogController fogController;
         [SerializeField] private ActionMenuController actionMenu;
@@ -159,7 +162,12 @@ namespace Jagara.Runtime.Gameplay
                 Debug.LogWarning("NightmareBootstrap: dialoguePanel reference is not assigned; the Voice will not speak when the player dies.");
             }
 
-            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, itemsOnFloor, itemPrefab, dialoguePanel);
+            if (cameraShake == null)
+            {
+                Debug.LogWarning("NightmareBootstrap: cameraShake reference is not assigned; the camera will not shake when the player is hit.");
+            }
+
+            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, itemsOnFloor, itemPrefab, dialoguePanel, cameraShake);
             statusHud?.Bind(controller.Stats.Health, controller.Stats.Paranoia);
 
             if (cameraFollow != null)

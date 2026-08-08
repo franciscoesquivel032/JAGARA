@@ -11,19 +11,35 @@ namespace Jagara.Runtime.Gameplay
     {
         [SerializeField] private float smoothTime = 0.15f;
 
+        [Tooltip("Optional. When assigned, its CurrentOffset is added on top of the smoothed follow position every frame.")]
+        [SerializeField] private CameraShake shake;
+
         private Transform target;
         private Vector3 velocity;
         private float fixedZ;
 
-        private void Awake() => fixedZ = transform.position.z;
+        // The follow logic's own idea of "where the camera should be" before
+        // shake is applied. SmoothDamp reads/writes this instead of
+        // transform.position directly - otherwise a shake offset written to
+        // transform.position one frame would be read back as this frame's
+        // "current" value next frame, corrupting velocity and turning a clean
+        // decaying shake into drift.
+        private Vector3 smoothedPosition;
+
+        private void Awake()
+        {
+            fixedZ = transform.position.z;
+            smoothedPosition = transform.position;
+        }
 
         public void SetTarget(Transform newTarget, bool snap = true)
         {
             target = newTarget;
             if (snap && target != null)
             {
-                transform.position = new Vector3(target.position.x, target.position.y, fixedZ);
+                smoothedPosition = new Vector3(target.position.x, target.position.y, fixedZ);
                 velocity = Vector3.zero;
+                transform.position = smoothedPosition + ShakeOffset();
             }
         }
 
@@ -35,7 +51,10 @@ namespace Jagara.Runtime.Gameplay
             }
 
             Vector3 desired = new Vector3(target.position.x, target.position.y, fixedZ);
-            transform.position = Vector3.SmoothDamp(transform.position, desired, ref velocity, smoothTime);
+            smoothedPosition = Vector3.SmoothDamp(smoothedPosition, desired, ref velocity, smoothTime);
+            transform.position = smoothedPosition + ShakeOffset();
         }
+
+        private Vector3 ShakeOffset() => shake != null ? shake.CurrentOffset : Vector3.zero;
     }
 }

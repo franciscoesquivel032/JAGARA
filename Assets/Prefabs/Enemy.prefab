@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5651489401490126843}
   - component: {fileID: 7274537447842691531}
   - component: {fileID: 9033496618728720111}
+  - component: {fileID: 774859049488216336}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -59,8 +60,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b49ce75a67b03744b4822dbb48519f2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.Enemies.EnemyController
-  messageLog: {fileID: 11400000, guid: 46fd613be2ecb6d4a91abc3ef8ef287c, type: 2}
-  attackMessage: {fileID: 11400000, guid: ab404ef5e5945b94f847ad6829af97b4, type: 2}
+--- !u!114 &774859049488216336
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6190294369394306894}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 912ae097370087348be5891e6aee28ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Jagara.Runtime::Jagara.Runtime.UI.HpPopupBinder
+  popupRequestEvent: {fileID: 11400000, guid: 221ef1b629567d44eb7cae35fe87f0e2, type: 2}
+  spawnAnchor: {fileID: 0}
+  spawnOffset: {x: 0, y: 0.45, z: 0}
+  damageColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1 &7601165993066632759
 GameObject:
   m_ObjectHideFlags: 0
@@ -174,6 +189,13 @@ MonoBehaviour:
   hopHeight: 0.125
   squashAmount: 0.06
   spriteFacesLeft: 1
+  attackLungeDistance: 0.35
+  attackDuration: 0.24
+  hitShakeMagnitude: 0.08
+  hitDuration: 0.33
+  hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
+  deathBlinkCount: 5
+  deathBlinkInterval: 0.06
 --- !u!114 &6014560558916595823
 MonoBehaviour:
   m_ObjectHideFlags: 0

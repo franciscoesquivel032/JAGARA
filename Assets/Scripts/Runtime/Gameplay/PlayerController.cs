@@ -48,8 +48,19 @@ namespace Jagara.Runtime.Gameplay
 
         private HealthBarBinder healthBarBinder;
         private ParanoiaBarBinder paranoiaBarBinder;
+        private HpPopupBinder hpPopupBinder;
+        private GridVisualAnimator visualAnimator;
+
+        // Scene object, so it cannot be serialized into this prefab - threaded
+        // in through Initialize, the same way dialoguePanel is.
+        private CameraShake cameraShake;
 
         private InputAction moveAction;
+
+        // True from PerformAttack starting the lunge until its completion
+        // callback fires. Joins mover.IsMoving in Update's gate so a held
+        // key can't commit a second action while the lunge is still playing.
+        private bool attackAnimationInProgress;
 
         // Keeps a bump-attack to one action per press. Without it a held key
         // commits an attack (and a full turn of enemy retaliation) every frame,
@@ -79,6 +90,8 @@ namespace Jagara.Runtime.Gameplay
 
             healthBarBinder = GetComponentInChildren<HealthBarBinder>();
             paranoiaBarBinder = GetComponentInChildren<ParanoiaBarBinder>();
+            hpPopupBinder = GetComponentInChildren<HpPopupBinder>();
+            visualAnimator = GetComponentInChildren<GridVisualAnimator>();
 
             if (healthBarBinder == null)
             {
@@ -88,6 +101,11 @@ namespace Jagara.Runtime.Gameplay
             if (paranoiaBarBinder == null)
             {
                 Debug.LogError($"PlayerController on {name}: no ParanoiaBarBinder found in children; the player will have no paranoia bar.");
+            }
+
+            if (hpPopupBinder == null)
+            {
+                Debug.LogError($"PlayerController on {name}: no HpPopupBinder found in children; the player will show no HP popups.");
             }
 
             if (inventory == null)
@@ -120,8 +138,10 @@ namespace Jagara.Runtime.Gameplay
             if (stats != null && stats.Health != null)
             {
                 stats.Health.OnDeath -= HandleDeath;
+                stats.Health.OnHPChanged -= HandleHPChanged;
                 healthBarBinder?.Unbind();
                 paranoiaBarBinder?.Unbind();
+                hpPopupBinder?.Unbind();
             }
 
             if (turnResolver != null)
@@ -130,7 +150,7 @@ namespace Jagara.Runtime.Gameplay
             }
         }
 
-        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy, Dictionary<Vector2Int, ItemMarker> itemsOnFloor, GameObject itemPrefab, DialoguePanelController dialoguePanel)
+        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy, Dictionary<Vector2Int, ItemMarker> itemsOnFloor, GameObject itemPrefab, DialoguePanelController dialoguePanel, CameraShake cameraShake)
         {
             turnResolver = resolver;
             this.occupancy = occupancy;
@@ -138,7 +158,9 @@ namespace Jagara.Runtime.Gameplay
             this.tilemap = tilemap;
             this.itemPrefab = itemPrefab;
             this.dialoguePanel = dialoguePanel;
+            this.cameraShake = cameraShake;
             attackLatch.Clear();
+            attackAnimationInProgress = false;
             deathPending = false;
             mover.Initialize(floor, tilemap, startCell, occupancy);
 
@@ -174,8 +196,10 @@ namespace Jagara.Runtime.Gameplay
             }
 
             stats.Health.OnDeath += HandleDeath;
+            stats.Health.OnHPChanged += HandleHPChanged;
             healthBarBinder?.Bind(stats.Health);
             paranoiaBarBinder?.Bind(stats.Paranoia);
+            hpPopupBinder?.Bind(stats.Health);
         }
 
         private void Update()
@@ -187,7 +211,7 @@ namespace Jagara.Runtime.Gameplay
             // otherwise the player's next press would be swallowed.
             attackLatch.Observe(direction);
 
-            if (mover.IsMoving || (turnResolver != null && turnResolver.IsResolving) || (inputGate != null && inputGate.IsBlocked))
+            if (mover.IsMoving || attackAnimationInProgress || (turnResolver != null && turnResolver.IsResolving) || (inputGate != null && inputGate.IsBlocked))
             {
                 return;
             }
@@ -204,7 +228,7 @@ namespace Jagara.Runtime.Gameplay
                 // is what stops the same held key from also walking the player into
                 // the tile once the enemy dies and vacates it.
                 attackLatch.Latch(direction);
-                PerformAttack(enemy);
+                PerformAttack(enemy, direction);
                 return;
             }
 
@@ -232,13 +256,15 @@ namespace Jagara.Runtime.Gameplay
 
         /// <summary>
         /// Resolves a basic bump-attack (no PP cost) against an adjacent enemy
-        /// instead of moving into its tile. Ends the turn directly since there's
-        /// no move tween to wait for (unlike HandleMoveCompleted's movement path).
-        /// The damage line is posted on a killing blow too, not just a surviving
-        /// hit - otherwise the one attack whose number matters most is the one the
-        /// log never shows.
+        /// instead of moving into its tile. Damage resolves synchronously, but
+        /// the turn now ends via HandleAttackAnimationCompleted once the attack
+        /// lunge (see GridVisualAnimator.PlayAttack) returns to rest - unless no
+        /// visual animator is present, in which case the turn ends immediately
+        /// as before. The damage line is posted on a killing blow too, not just
+        /// a surviving hit - otherwise the one attack whose number matters most
+        /// is the one the log never shows.
         /// </summary>
-        private void PerformAttack(EnemyController enemy)
+        private void PerformAttack(EnemyController enemy, Vector2Int direction)
         {
             if (stats == null)
             {
@@ -254,6 +280,26 @@ namespace Jagara.Runtime.Gameplay
                 enemy.Die();
             }
 
+            if (visualAnimator != null)
+            {
+                attackAnimationInProgress = true;
+                visualAnimator.PlayAttack(direction, HandleAttackAnimationCompleted);
+            }
+            else
+            {
+                turnResolver?.EndPlayerTurn();
+            }
+        }
+
+        /// <summary>
+        /// Fires once the player's attack lunge returns to rest. The turn only
+        /// ends here, not synchronously inside PerformAttack, so a held key
+        /// can't commit a second action while the lunge is still playing (see
+        /// attackAnimationInProgress in Update).
+        /// </summary>
+        private void HandleAttackAnimationCompleted()
+        {
+            attackAnimationInProgress = false;
             turnResolver?.EndPlayerTurn();
         }
 
@@ -317,6 +363,19 @@ namespace Jagara.Runtime.Gameplay
         {
             deathPending = true;
             inputGate?.PushBlock();
+        }
+
+        /// <summary>
+        /// Plays the player's hit-reaction flash+shake and a small camera
+        /// shake whenever HP actually drops (HealthState.OnHPChanged only
+        /// fires on a genuine hit - see HealthState.TakeDamage). Purely
+        /// cosmetic: does not gate input or interact with deathPending/
+        /// HandleDeath in any way.
+        /// </summary>
+        private void HandleHPChanged(int current, int max)
+        {
+            visualAnimator?.PlayHitReaction();
+            cameraShake?.Shake();
         }
 
         /// <summary>

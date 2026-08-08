@@ -6,6 +6,7 @@ using Jagara.Runtime.DungeonGen;
 using Jagara.Runtime.Gameplay;
 using Jagara.Runtime.Resources;
 using Jagara.Runtime.TurnSystem;
+using Jagara.Runtime.UI;
 
 namespace Jagara.Runtime.Enemies
 {
@@ -22,6 +23,7 @@ namespace Jagara.Runtime.Enemies
         private GridMover mover;
         private SpriteRenderer spriteRenderer;
         private GridVisualAnimator visualAnimator;
+        private HpPopupBinder hpPopupBinder;
 
         private EnemyConfigSO config;
         private EnemyAIContext context;
@@ -48,6 +50,7 @@ namespace Jagara.Runtime.Enemies
             mover = GetComponent<GridMover>();
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
             visualAnimator = GetComponentInChildren<GridVisualAnimator>();
+            hpPopupBinder = GetComponentInChildren<HpPopupBinder>();
 
             if (spriteRenderer == null)
             {
@@ -57,12 +60,19 @@ namespace Jagara.Runtime.Enemies
 
         private void OnEnable()
         {
-            mover.OnMoveCompleted += HandleMoveCompleted;
+            mover.OnMoveCompleted += HandleAnimationCompleted;
         }
 
         private void OnDisable()
         {
-            mover.OnMoveCompleted -= HandleMoveCompleted;
+            mover.OnMoveCompleted -= HandleAnimationCompleted;
+
+            if (health != null)
+            {
+                health.OnHPChanged -= HandleHPChanged;
+            }
+
+            hpPopupBinder?.Unbind();
 
             if (resolver == null)
             {
@@ -91,6 +101,8 @@ namespace Jagara.Runtime.Enemies
             this.resolver = resolver;
             state = EnemyAIState.Dormant;
             health = new HealthState(config.BaseMaxHP);
+            health.OnHPChanged += HandleHPChanged;
+            hpPopupBinder?.Bind(health);
 
             if (spriteRenderer != null)
             {
@@ -133,7 +145,7 @@ namespace Jagara.Runtime.Enemies
             // enemy never needs pathfinding this turn.
             if (EnemyAILogic.IsAdjacent(enemyCell, playerCell))
             {
-                PerformAttack();
+                PerformAttack(playerCell);
                 return;
             }
 
@@ -148,7 +160,7 @@ namespace Jagara.Runtime.Enemies
             // animation counter at all.
         }
 
-        private void HandleMoveCompleted()
+        private void HandleAnimationCompleted()
         {
             if (!animationPending)
             {
@@ -167,27 +179,64 @@ namespace Jagara.Runtime.Enemies
         /// combined message once the turn is fully resolved (see
         /// PlayerController.HandleTurnEnded). The player's own death handling
         /// (message, input freeze) is owned by PlayerController via its
-        /// HealthState.OnDeath subscription, not here.
+        /// HealthState.OnDeath subscription, not here. Also kicks off this
+        /// enemy's attack-lunge animation (if a GridVisualAnimator is present),
+        /// gating turn resolution on it exactly like a move step does via
+        /// BeginActorAnimation/EndActorAnimation - if no visual animator is
+        /// present (as in EnemyControllerTests), no gating happens at all and
+        /// TakeTurn returns exactly as it does today.
         /// </summary>
-        private void PerformAttack()
+        private void PerformAttack(Vector2Int playerCell)
         {
             CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(config.BaseAttackDamage, context.PlayerStats.Health);
             context.PlayerStats.RecordIncomingAttack(config.DisplayName, result.Damage);
+
+            if (visualAnimator != null)
+            {
+                Vector2Int direction = playerCell - mover.CurrentCell;
+                resolver.BeginActorAnimation();
+                animationPending = true;
+                visualAnimator.PlayAttack(direction, HandleAnimationCompleted);
+            }
+        }
+
+        /// <summary>
+        /// Plays this enemy's hit-reaction flash+shake whenever the player
+        /// damages it (HealthState.OnHPChanged only fires on a genuine hit -
+        /// see HealthState.TakeDamage). Purely cosmetic. On a killing blow,
+        /// this coroutine starts but is immediately cancelled by
+        /// GridVisualAnimator.PlayDeath (called from Die()) before it ever
+        /// renders a frame, since the death-blink animation takes over the
+        /// sprite's visibility from that point on.
+        /// </summary>
+        private void HandleHPChanged(int current, int max)
+        {
+            visualAnimator?.PlayHitReaction();
         }
 
         /// <summary>
         /// Called by an attacker (e.g. PlayerController after a killing bump-attack)
-        /// once this enemy's HP reaches 0. Unregisters from the turn resolver so it
-        /// cannot act again, frees its tile immediately, then destroys the GameObject.
-        /// The explicit ReleaseCell matters because Destroy is deferred to the end of
-        /// the frame: relying on GridMover.OnDestroy alone would leave the corpse
-        /// blocking its tile for the remainder of the turn it died on.
+        /// once this enemy's HP reaches 0. Unregisters from the turn resolver and
+        /// frees its tile immediately - a dying enemy must stop acting and stop
+        /// blocking movement/attacks right away, exactly as before - but the
+        /// GameObject's destruction is now deferred until its death-blink animation
+        /// finishes (if a GridVisualAnimator is present), instead of destroying it
+        /// the same frame. Falls back to immediate Destroy when no visual animator
+        /// is present, matching every other animation fallback in this class.
         /// </summary>
         public void Die()
         {
             resolver.UnregisterActor(this);
             mover.ReleaseCell();
-            Destroy(gameObject);
+
+            if (visualAnimator != null)
+            {
+                visualAnimator.PlayDeath(() => Destroy(gameObject));
+            }
+            else
+            {
+                Destroy(gameObject);
+            }
         }
     }
 }

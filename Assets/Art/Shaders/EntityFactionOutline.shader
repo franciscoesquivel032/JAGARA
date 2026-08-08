@@ -7,6 +7,8 @@ Shader "Jagara/EntityFactionOutline"
         _OutlineColor ("Outline Color", Color) = (1, 1, 1, 1)
         _OutlineWidth ("Outline Width (texels)", Range(0, 2)) = 0.5
         _OutlineIntensity ("Outline Intensity", Range(0, 1)) = 0.55
+        _FlashColor ("Flash Color", Color) = (1, 1, 1, 1)
+        _FlashAmount ("Flash Amount", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -32,6 +34,8 @@ Shader "Jagara/EntityFactionOutline"
                 half4 _OutlineColor;
                 float _OutlineWidth;
                 float _OutlineIntensity;
+                half4 _FlashColor;
+                float _FlashAmount;
             CBUFFER_END
 
             struct Attributes
@@ -63,6 +67,7 @@ Shader "Jagara/EntityFactionOutline"
 
                 if (baseSample.a > 0.001)
                 {
+                    baseSample.rgb = lerp(baseSample.rgb, _FlashColor.rgb, _FlashAmount);
                     return baseSample;
                 }
 
