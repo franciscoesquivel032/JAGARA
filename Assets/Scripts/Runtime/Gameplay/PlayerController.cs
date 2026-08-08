@@ -51,6 +51,10 @@ namespace Jagara.Runtime.Gameplay
         private HpPopupBinder hpPopupBinder;
         private GridVisualAnimator visualAnimator;
 
+        // Scene object, so it cannot be serialized into this prefab - threaded
+        // in through Initialize, the same way dialoguePanel is.
+        private CameraShake cameraShake;
+
         private InputAction moveAction;
 
         // True from PerformAttack starting the lunge until its completion
@@ -146,7 +150,7 @@ namespace Jagara.Runtime.Gameplay
             }
         }
 
-        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy, Dictionary<Vector2Int, ItemMarker> itemsOnFloor, GameObject itemPrefab, DialoguePanelController dialoguePanel)
+        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy, Dictionary<Vector2Int, ItemMarker> itemsOnFloor, GameObject itemPrefab, DialoguePanelController dialoguePanel, CameraShake cameraShake)
         {
             turnResolver = resolver;
             this.occupancy = occupancy;
@@ -154,6 +158,7 @@ namespace Jagara.Runtime.Gameplay
             this.tilemap = tilemap;
             this.itemPrefab = itemPrefab;
             this.dialoguePanel = dialoguePanel;
+            this.cameraShake = cameraShake;
             attackLatch.Clear();
             attackAnimationInProgress = false;
             deathPending = false;
@@ -361,14 +366,16 @@ namespace Jagara.Runtime.Gameplay
         }
 
         /// <summary>
-        /// Plays the player's hit-reaction flash+shake whenever HP actually
-        /// drops (HealthState.OnHPChanged only fires on a genuine hit - see
-        /// HealthState.TakeDamage). Purely cosmetic: does not gate input or
-        /// interact with deathPending/HandleDeath in any way.
+        /// Plays the player's hit-reaction flash+shake and a small camera
+        /// shake whenever HP actually drops (HealthState.OnHPChanged only
+        /// fires on a genuine hit - see HealthState.TakeDamage). Purely
+        /// cosmetic: does not gate input or interact with deathPending/
+        /// HandleDeath in any way.
         /// </summary>
         private void HandleHPChanged(int current, int max)
         {
             visualAnimator?.PlayHitReaction();
+            cameraShake?.Shake();
         }
 
         /// <summary>
