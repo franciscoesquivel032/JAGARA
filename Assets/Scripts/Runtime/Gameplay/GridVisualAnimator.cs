@@ -191,7 +191,16 @@ namespace Jagara.Runtime.Gameplay
                 StopCoroutine(hitCoroutine);
             }
 
-            hitParticles?.Play();
+            // Deliberately not hitParticles?.Play(): the null-conditional
+            // operator does a raw reference check and skips UnityEngine.Object's
+            // overloaded null comparison, so an unassigned (never-wired, e.g. on
+            // Enemy) SerializeField throws UnassignedReferenceException instead
+            // of no-oping.
+            if (hitParticles != null)
+            {
+                hitParticles.Play();
+            }
+
             hitCoroutine = StartCoroutine(HitReactionRoutine());
         }
 
