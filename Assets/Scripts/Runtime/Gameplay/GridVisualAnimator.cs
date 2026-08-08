@@ -31,7 +31,7 @@ namespace Jagara.Runtime.Gameplay
         [Header("Hit reaction")]
         [SerializeField] private float hitShakeMagnitude = 0.08f;
         [SerializeField] private float hitDuration = 0.22f;
-        [SerializeField] private Color hitFlashColor = Color.white;
+        [SerializeField] private Color hitFlashColor = new Color(1f, 0.35f, 0.35f);
 
         private Vector3 baseLocalPosition;
         private float spriteHeight;
@@ -111,7 +111,10 @@ namespace Jagara.Runtime.Gameplay
                 StopCoroutine(attackCoroutine);
                 attackCoroutine = null;
                 isAttacking = false;
+
+                Action callback = attackCompleteCallback;
                 attackCompleteCallback = null;
+                callback?.Invoke();
             }
 
             if (hitCoroutine != null)

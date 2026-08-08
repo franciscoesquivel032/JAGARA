@@ -64,7 +64,7 @@ New serialized tuning fields (defaults chosen for a snappy, readable but non-int
 feel; tunable per-prefab in the Inspector afterward):
 
 - `attackLungeDistance` (0.35), `attackDuration` (0.16s)
-- `hitShakeMagnitude` (0.08), `hitDuration` (0.22s), `hitFlashColor` (white)
+- `hitShakeMagnitude` (0.08), `hitDuration` (0.22s), `hitFlashColor` (a warm red tint, `(1, 0.35, 0.35)`)
 
 New public API:
 

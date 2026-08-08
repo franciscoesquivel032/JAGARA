@@ -5,10 +5,15 @@ namespace Jagara.Runtime.Gameplay
     /// <summary>
     /// Pure math for the player's procedural motion (idle bob, move hop,
     /// squash-stretch, facing), decoupled from MonoBehaviour so it can run in
-    /// Edit Mode tests. See PlayerVisualAnimator for the runtime wrapper.
+    /// Edit Mode tests. See GridVisualAnimator for the runtime wrapper.
     /// </summary>
     public static class PlayerMotionAnimator
     {
+        // Shake frequency for ComputeHitShakeOffset, baked into the curve so
+        // callers only supply progress/magnitude - same spirit as
+        // ComputeHopHeight's fixed triangular shape.
+        private const float ShakeCycles = 3f;
+
         // Breathing squash: y oscillates in [1 - amount, 1] (never stretches past
         // the sprite rect) while x widens inversely to preserve apparent volume.
         public static Vector2 ComputeIdleBreathScale(float time, float amount, float speed)
@@ -47,11 +52,6 @@ namespace Jagara.Runtime.Gameplay
             bool movingLeft = directionX < 0;
             return spriteFacesLeft ? !movingLeft : movingLeft;
         }
-
-        // Shake frequency for ComputeHitShakeOffset, baked into the curve so
-        // callers only supply progress/magnitude - same spirit as
-        // ComputeHopHeight's fixed triangular shape.
-        private const float ShakeCycles = 3f;
 
         // Bump-and-return lunge toward `direction` (a unit cardinal vector, as
         // produced by CardinalDirectionResolver). Reuses ComputeHopHeight's

@@ -139,7 +139,7 @@ namespace Jagara.Runtime.Enemies
             // enemy never needs pathfinding this turn.
             if (EnemyAILogic.IsAdjacent(enemyCell, playerCell))
             {
-                PerformAttack();
+                PerformAttack(playerCell);
                 return;
             }
 
@@ -180,14 +180,14 @@ namespace Jagara.Runtime.Enemies
         /// present (as in EnemyControllerTests), no gating happens at all and
         /// TakeTurn returns exactly as it does today.
         /// </summary>
-        private void PerformAttack()
+        private void PerformAttack(Vector2Int playerCell)
         {
             CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(config.BaseAttackDamage, context.PlayerStats.Health);
             context.PlayerStats.RecordIncomingAttack(config.DisplayName, result.Damage);
 
             if (visualAnimator != null)
             {
-                Vector2Int direction = context.PlayerCell - mover.CurrentCell;
+                Vector2Int direction = playerCell - mover.CurrentCell;
                 resolver.BeginActorAnimation();
                 animationPending = true;
                 visualAnimator.PlayAttack(direction, HandleAnimationCompleted);

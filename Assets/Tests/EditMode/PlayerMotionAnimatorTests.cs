@@ -207,6 +207,18 @@ namespace Jagara.Tests.EditMode
             Assert.Greater(early, late);
         }
 
+        [Test]
+        public void ComputeHitShakeOffset_OscillatesThreeTimesAcrossFullDuration()
+        {
+            // With ShakeCycles baked at 3, sin(6*pi*p) crosses zero at p = k/6 for
+            // integer k, including p = 0.5 (k=3) - a curve with fewer oscillations
+            // (e.g. 1 cycle) would still be solidly positive at p = 0.5, so this
+            // pins the oscillation count without hardcoding the private constant.
+            float atHalf = PlayerMotionAnimator.ComputeHitShakeOffset(0.5f, magnitude: 0.08f);
+
+            Assert.AreEqual(0f, atHalf, 1e-4f);
+        }
+
         [TestCase(0f, 1f)]
         [TestCase(1f, 0f)]
         [TestCase(0.5f, 0.5f)]
