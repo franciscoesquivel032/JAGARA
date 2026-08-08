@@ -25,21 +25,30 @@ namespace Jagara.Runtime.Resources
             Current = max;
         }
 
-        /// <summary>Applies damage, clamped at 0. No-ops if already dead or amount is non-positive.</summary>
-        public void TakeDamage(int amount)
+        /// <summary>
+        /// Applies damage, clamped at 0. No-ops if already dead or amount is
+        /// non-positive. Returns the HP actually removed, which is less than
+        /// <paramref name="amount"/> on an overkill hit (and 0 on a no-op) - callers
+        /// report that figure rather than the rolled one, so a log line can never
+        /// claim more damage than the health bar lost.
+        /// </summary>
+        public int TakeDamage(int amount)
         {
             if (amount <= 0 || IsDead)
             {
-                return;
+                return 0;
             }
 
-            Current = Math.Max(0, Current - amount);
+            int applied = Math.Min(amount, Current);
+            Current -= applied;
             OnHPChanged(Current, Max);
 
             if (IsDead)
             {
                 OnDeath();
             }
+
+            return applied;
         }
     }
 }

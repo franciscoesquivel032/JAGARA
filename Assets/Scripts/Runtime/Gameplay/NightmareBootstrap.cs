@@ -19,6 +19,7 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private FloorInstantiator floorInstantiator;
         [SerializeField] private GridOverlayInstantiator gridOverlayInstantiator;
         [SerializeField] private GameObject playerPrefab;
+        [SerializeField] private PlayerStatsSO playerStats;
         [SerializeField] private GameObject enemyPrefab;
         [SerializeField] private GameObject itemPrefab;
         [SerializeField] private CameraFollow cameraFollow;
@@ -26,8 +27,12 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private FogController fogController;
         [SerializeField] private ActionMenuController actionMenu;
         [SerializeField] private ItemActionPanelController itemActionPanel;
+        [SerializeField] private PlayerStatusHudController statusHud;
 
         [Header("Narrative")]
+        [Tooltip("Threaded into PlayerController at spawn (a scene object can't be serialized into the player prefab). Used for the Voice's line on death.")]
+        [SerializeField] private DialoguePanelController dialoguePanel;
+
         [SerializeField] private GameplayInputGateSO inputGate;
         [SerializeField] private MessageLogSO messageLog;
         [SerializeField] private MessageTemplateSO floorEnteredMessage;
@@ -39,12 +44,17 @@ namespace Jagara.Runtime.Gameplay
 
         private void Start()
         {
-            // Both survive Play Mode sessions and scene loads (they're assets), so
-            // a new floor has to start from a clean log and an open input gate -
-            // otherwise the previous run's messages and any block left behind by a
-            // panel destroyed mid-transition would carry over.
+            // All three survive Play Mode sessions and scene loads (they're
+            // assets), so a new floor has to start from a clean log, an open
+            // input gate, and fresh HP/Paranoia - otherwise the previous run's
+            // messages, any block left behind by a panel destroyed mid-transition,
+            // or even a dead HealthState (Current stuck at 0, TakeDamage a no-op)
+            // would carry over. OnEnable alone doesn't cover this: with "Enter
+            // Play Mode Options" set to skip domain reload, these assets' OnEnable
+            // does not re-run between Play sessions.
             messageLog?.Clear();
             inputGate?.ResetGate();
+            playerStats?.ResetRuntimeState();
 
             if (generationParams == null)
             {
@@ -144,7 +154,13 @@ namespace Jagara.Runtime.Gameplay
             actionMenu?.Initialize(turnResolver);
             itemActionPanel?.Initialize(controller);
 
-            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, itemsOnFloor, itemPrefab);
+            if (dialoguePanel == null)
+            {
+                Debug.LogWarning("NightmareBootstrap: dialoguePanel reference is not assigned; the Voice will not speak when the player dies.");
+            }
+
+            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, itemsOnFloor, itemPrefab, dialoguePanel);
+            statusHud?.Bind(controller.Stats.Health, controller.Stats.Paranoia);
 
             if (cameraFollow != null)
             {
