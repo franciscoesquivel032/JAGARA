@@ -57,12 +57,17 @@ namespace Jagara.Runtime.Enemies
 
         private void OnEnable()
         {
-            mover.OnMoveCompleted += HandleMoveCompleted;
+            mover.OnMoveCompleted += HandleAnimationCompleted;
         }
 
         private void OnDisable()
         {
-            mover.OnMoveCompleted -= HandleMoveCompleted;
+            mover.OnMoveCompleted -= HandleAnimationCompleted;
+
+            if (health != null)
+            {
+                health.OnHPChanged -= HandleHPChanged;
+            }
 
             if (resolver == null)
             {
@@ -91,6 +96,7 @@ namespace Jagara.Runtime.Enemies
             this.resolver = resolver;
             state = EnemyAIState.Dormant;
             health = new HealthState(config.BaseMaxHP);
+            health.OnHPChanged += HandleHPChanged;
 
             if (spriteRenderer != null)
             {
@@ -148,7 +154,7 @@ namespace Jagara.Runtime.Enemies
             // animation counter at all.
         }
 
-        private void HandleMoveCompleted()
+        private void HandleAnimationCompleted()
         {
             if (!animationPending)
             {
@@ -167,12 +173,38 @@ namespace Jagara.Runtime.Enemies
         /// combined message once the turn is fully resolved (see
         /// PlayerController.HandleTurnEnded). The player's own death handling
         /// (message, input freeze) is owned by PlayerController via its
-        /// HealthState.OnDeath subscription, not here.
+        /// HealthState.OnDeath subscription, not here. Also kicks off this
+        /// enemy's attack-lunge animation (if a GridVisualAnimator is present),
+        /// gating turn resolution on it exactly like a move step does via
+        /// BeginActorAnimation/EndActorAnimation - if no visual animator is
+        /// present (as in EnemyControllerTests), no gating happens at all and
+        /// TakeTurn returns exactly as it does today.
         /// </summary>
         private void PerformAttack()
         {
             CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(config.BaseAttackDamage, context.PlayerStats.Health);
             context.PlayerStats.RecordIncomingAttack(config.DisplayName, result.Damage);
+
+            if (visualAnimator != null)
+            {
+                Vector2Int direction = context.PlayerCell - mover.CurrentCell;
+                resolver.BeginActorAnimation();
+                animationPending = true;
+                visualAnimator.PlayAttack(direction, HandleAnimationCompleted);
+            }
+        }
+
+        /// <summary>
+        /// Plays this enemy's hit-reaction flash+shake whenever the player
+        /// damages it (HealthState.OnHPChanged only fires on a genuine hit -
+        /// see HealthState.TakeDamage). Purely cosmetic. On a killing blow,
+        /// this coroutine starts but is immediately cut short by Die()
+        /// destroying the GameObject in the same frame - a known, accepted
+        /// gap (no death animation; see the design spec).
+        /// </summary>
+        private void HandleHPChanged(int current, int max)
+        {
+            visualAnimator?.PlayHitReaction();
         }
 
         /// <summary>
