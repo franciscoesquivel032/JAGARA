@@ -37,6 +37,7 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private float hitShakeMagnitude = 0.08f;
         [SerializeField] private float hitDuration = 0.33f;
         [SerializeField] private Color hitFlashColor = Color.white;
+        [SerializeField] private ParticleSystem hitParticles;
 
         [Header("Death")]
         [SerializeField] private int deathBlinkCount = 5;
@@ -188,6 +189,16 @@ namespace Jagara.Runtime.Gameplay
             if (hitCoroutine != null)
             {
                 StopCoroutine(hitCoroutine);
+            }
+
+            // Deliberately not hitParticles?.Play(): the null-conditional
+            // operator does a raw reference check and skips UnityEngine.Object's
+            // overloaded null comparison, so an unassigned (never-wired, e.g. on
+            // Enemy) SerializeField throws UnassignedReferenceException instead
+            // of no-oping.
+            if (hitParticles != null)
+            {
+                hitParticles.Play();
             }
 
             hitCoroutine = StartCoroutine(HitReactionRoutine());

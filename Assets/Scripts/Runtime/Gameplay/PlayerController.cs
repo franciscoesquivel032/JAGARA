@@ -46,8 +46,6 @@ namespace Jagara.Runtime.Gameplay
         public GridMover Mover => mover;
         public PlayerStatsSO Stats => stats;
 
-        private HealthBarBinder healthBarBinder;
-        private ParanoiaBarBinder paranoiaBarBinder;
         private HpPopupBinder hpPopupBinder;
         private GridVisualAnimator visualAnimator;
 
@@ -88,20 +86,8 @@ namespace Jagara.Runtime.Gameplay
             var map = controlsAsset.FindActionMap("Gameplay", throwIfNotFound: true);
             moveAction = map.FindAction("Move", throwIfNotFound: true);
 
-            healthBarBinder = GetComponentInChildren<HealthBarBinder>();
-            paranoiaBarBinder = GetComponentInChildren<ParanoiaBarBinder>();
             hpPopupBinder = GetComponentInChildren<HpPopupBinder>();
             visualAnimator = GetComponentInChildren<GridVisualAnimator>();
-
-            if (healthBarBinder == null)
-            {
-                Debug.LogError($"PlayerController on {name}: no HealthBarBinder found in children; the player will have no health bar.");
-            }
-
-            if (paranoiaBarBinder == null)
-            {
-                Debug.LogError($"PlayerController on {name}: no ParanoiaBarBinder found in children; the player will have no paranoia bar.");
-            }
 
             if (hpPopupBinder == null)
             {
@@ -139,8 +125,6 @@ namespace Jagara.Runtime.Gameplay
             {
                 stats.Health.OnDeath -= HandleDeath;
                 stats.Health.OnHPChanged -= HandleHPChanged;
-                healthBarBinder?.Unbind();
-                paranoiaBarBinder?.Unbind();
                 hpPopupBinder?.Unbind();
             }
 
@@ -170,14 +154,14 @@ namespace Jagara.Runtime.Gameplay
         }
 
         /// <summary>
-        /// Subscribes to Health/Paranoia and binds the HP/Paranoia bars. Called
-        /// from Initialize rather than OnEnable: OnEnable fires implicitly the
+        /// Subscribes to Health/Paranoia and binds the HP popup. Called from
+        /// Initialize rather than OnEnable: OnEnable fires implicitly the
         /// instant NightmareBootstrap.SpawnPlayer's Instantiate() call runs,
         /// with no guarantee PlayerStatsSO.ResetRuntimeState() (which creates
         /// Health/Paranoia) has completed by then - it races, and losing that
         /// race means stats.Health is null here, throwing and silently
         /// aborting the rest of OnEnable (Unity swallows exceptions thrown
-        /// from lifecycle methods), which permanently orphans both bars for
+        /// from lifecycle methods), which permanently orphans the popup for
         /// the rest of the session. Initialize is called explicitly by
         /// SpawnPlayer strictly after NightmareBootstrap.Start() has already
         /// called ResetRuntimeState, so there is no ordering ambiguity here.
@@ -191,14 +175,12 @@ namespace Jagara.Runtime.Gameplay
 
             if (stats.Health == null || stats.Paranoia == null)
             {
-                Debug.LogError($"PlayerController on {name}: stats.Health/Paranoia is still null at Initialize; HP/Paranoia bars will not be bound.");
+                Debug.LogError($"PlayerController on {name}: stats.Health/Paranoia is still null at Initialize; HP popup will not be bound.");
                 return;
             }
 
             stats.Health.OnDeath += HandleDeath;
             stats.Health.OnHPChanged += HandleHPChanged;
-            healthBarBinder?.Bind(stats.Health);
-            paranoiaBarBinder?.Bind(stats.Paranoia);
             hpPopupBinder?.Bind(stats.Health);
         }
 

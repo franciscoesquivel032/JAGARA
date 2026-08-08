@@ -194,6 +194,7 @@ MonoBehaviour:
   hitShakeMagnitude: 0.08
   hitDuration: 0.33
   hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
+  hitParticles: {fileID: 0}
   deathBlinkCount: 5
   deathBlinkInterval: 0.06
 --- !u!114 &6014560558916595823

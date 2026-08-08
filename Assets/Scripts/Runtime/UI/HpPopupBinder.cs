@@ -5,12 +5,10 @@ using UnityEngine;
 namespace Jagara.Runtime.UI
 {
     /// <summary>
-    /// Turns HealthState.OnHPChanged into a PopupRequest. Kept separate from
-    /// HealthBarBinder since a popup is a different concern (a one-shot
-    /// spawned effect vs. a persistently bound bar), but mirrors its
-    /// Bind/Unbind shape exactly so PlayerController/EnemyController wire it
-    /// the same way. Computes the HP delta itself (rather than depending on a
-    /// specific combat call site) so it reacts to any HP change - damage,
+    /// Turns HealthState.OnHPChanged into a PopupRequest: a one-shot spawned
+    /// effect rather than a persistently bound bar. Mirrors PlayerController/
+    /// EnemyController's Bind/Unbind wiring shape. Computes the HP delta itself
+    /// (rather than depending on a specific combat call site) so it reacts to any HP change - damage,
     /// heal, a future damage-over-time tick - with no changes to
     /// CombatResolver or the PerformAttack methods.
     /// </summary>
