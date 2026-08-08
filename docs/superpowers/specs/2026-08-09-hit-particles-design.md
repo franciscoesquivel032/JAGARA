@@ -56,9 +56,13 @@ Visual (GridVisualAnimator)
 - **Size over Lifetime** (polish): `1.0 → 0.6` shrink for a crisper spark read.
 - **Renderer**: sorting layer matching the entity's sprite, sorting order above it (mirroring
   `TorchFlame`'s explicit sorting-order pattern) so the burst isn't occluded by the sprite it sits on.
-- **Material**: reuse Unity's default built-in particle material (plain white, alpha-blended)
-  rather than authoring a new asset — `TorchEmberParticle.mat` is tuned for an amber ember glow
-  and isn't a fit for a white spark. No new art asset needed for this pass.
+- **Material**: `Assets/Art/Materials/HitSparkParticle.mat` — a new material using the same
+  `Universal Render Pipeline/Particles/Unlit` shader and built-in soft-circle `Default-Particle`
+  texture as `TorchEmberParticle.mat` (Transparent surface, Additive blend, white base color).
+  A real material asset was required rather than relying on the ParticleSystem's built-in
+  fallback material: an unconfigured URP particle renderer falls back to a placeholder with no
+  valid shader assigned, which renders as solid pink/magenta (Unity's standard "missing shader"
+  indicator) instead of the intended white burst.
 
 Structural changes are made via MCP for Unity tools with the Editor in Edit Mode, never by
 hand-editing prefab YAML, and never verified while in Play Mode (Play Mode changes don't persist).
