@@ -9,13 +9,16 @@ namespace Jagara.Runtime.Gameplay
     /// breathing bob while stationary, a hop with squash-stretch during the
     /// grid tween, an attack lunge-and-return, and a hit-reaction
     /// flash+shake overlay - plus flipX facing. Only touches the child's
-    /// localPosition/localScale/color, so it never fights GridMover, which
-    /// tweens the root. Math lives in PlayerMotionAnimator (Edit Mode
-    /// testable).
+    /// localPosition/localScale and a shared MaterialPropertyBlock (for the
+    /// flash), so it never fights GridMover, which tweens the root. Math
+    /// lives in PlayerMotionAnimator (Edit Mode testable).
     /// </summary>
     [RequireComponent(typeof(SpriteRenderer))]
     public class GridVisualAnimator : MonoBehaviour
     {
+        private static readonly int FlashColorId = Shader.PropertyToID("_FlashColor");
+        private static readonly int FlashAmountId = Shader.PropertyToID("_FlashAmount");
+
         [SerializeField] private GridMover mover;
         [SerializeField] private SpriteRenderer spriteRenderer;
         [SerializeField] private float idleBreathAmount = 0.03125f;
@@ -26,16 +29,16 @@ namespace Jagara.Runtime.Gameplay
 
         [Header("Attack lunge")]
         [SerializeField] private float attackLungeDistance = 0.35f;
-        [SerializeField] private float attackDuration = 0.16f;
+        [SerializeField] private float attackDuration = 0.24f;
 
         [Header("Hit reaction")]
         [SerializeField] private float hitShakeMagnitude = 0.08f;
-        [SerializeField] private float hitDuration = 0.22f;
-        [SerializeField] private Color hitFlashColor = new Color(1f, 0.35f, 0.35f);
+        [SerializeField] private float hitDuration = 0.33f;
+        [SerializeField] private Color hitFlashColor = Color.white;
 
         private Vector3 baseLocalPosition;
         private float spriteHeight;
-        private Color originalColor;
+        private MaterialPropertyBlock propertyBlock;
 
         // Attack lunge state - a third, mutually exclusive pose alongside
         // idle/move-hop (see LateUpdate).
@@ -71,7 +74,7 @@ namespace Jagara.Runtime.Gameplay
             }
 
             baseLocalPosition = transform.localPosition;
-            originalColor = spriteRenderer.color;
+            propertyBlock = new MaterialPropertyBlock();
             RefreshSpriteMetrics();
         }
 
@@ -122,7 +125,7 @@ namespace Jagara.Runtime.Gameplay
                 StopCoroutine(hitCoroutine);
                 hitCoroutine = null;
                 isHit = false;
-                spriteRenderer.color = originalColor;
+                ResetFlash();
             }
         }
 
@@ -201,7 +204,21 @@ namespace Jagara.Runtime.Gameplay
 
             isHit = false;
             hitCoroutine = null;
-            spriteRenderer.color = originalColor;
+            ResetFlash();
+        }
+
+        /// <summary>
+        /// Zeroes the shared MaterialPropertyBlock's flash amount without
+        /// touching any other property another component (e.g. EntityOutline's
+        /// _OutlineColor) has already written into the same block - always
+        /// read-modify-write via GetPropertyBlock, never construct a fresh
+        /// block and set it unconditionally.
+        /// </summary>
+        private void ResetFlash()
+        {
+            spriteRenderer.GetPropertyBlock(propertyBlock);
+            propertyBlock.SetFloat(FlashAmountId, 0f);
+            spriteRenderer.SetPropertyBlock(propertyBlock);
         }
 
         // LateUpdate so the mover's coroutine (which runs after Update) has
@@ -232,7 +249,11 @@ namespace Jagara.Runtime.Gameplay
             if (isHit)
             {
                 hitOffset = new Vector3(PlayerMotionAnimator.ComputeHitShakeOffset(hitProgress, hitShakeMagnitude), 0f, 0f);
-                spriteRenderer.color = Color.Lerp(originalColor, hitFlashColor, PlayerMotionAnimator.ComputeHitFlashIntensity(hitProgress));
+
+                spriteRenderer.GetPropertyBlock(propertyBlock);
+                propertyBlock.SetColor(FlashColorId, hitFlashColor);
+                propertyBlock.SetFloat(FlashAmountId, PlayerMotionAnimator.ComputeHitFlashIntensity(hitProgress));
+                spriteRenderer.SetPropertyBlock(propertyBlock);
             }
 
             transform.localPosition = baseLocalPosition + baseOffset + hitOffset;
