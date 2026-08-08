@@ -47,5 +47,34 @@ namespace Jagara.Runtime.Gameplay
             bool movingLeft = directionX < 0;
             return spriteFacesLeft ? !movingLeft : movingLeft;
         }
+
+        // Shake frequency for ComputeHitShakeOffset, baked into the curve so
+        // callers only supply progress/magnitude - same spirit as
+        // ComputeHopHeight's fixed triangular shape.
+        private const float ShakeCycles = 3f;
+
+        // Bump-and-return lunge toward `direction` (a unit cardinal vector, as
+        // produced by CardinalDirectionResolver). Reuses ComputeHopHeight's
+        // triangular curve so an attack reads as a sibling of the move-hop
+        // rather than a different animation language.
+        public static Vector2 ComputeAttackLungeOffset(float progress, Vector2 direction, float lungeDistance)
+        {
+            return direction * ComputeHopHeight(progress, lungeDistance);
+        }
+
+        // Decaying side-to-side shake for a hit reaction: amplitude decays
+        // linearly to 0 across ShakeCycles oscillations.
+        public static float ComputeHitShakeOffset(float progress, float magnitude)
+        {
+            float p = Mathf.Clamp01(progress);
+            return magnitude * Mathf.Sin(p * ShakeCycles * Mathf.PI * 2f) * (1f - p);
+        }
+
+        // Flash intensity for a hit reaction: 1 at the moment of impact,
+        // fading linearly to 0 by the end of the reaction.
+        public static float ComputeHitFlashIntensity(float progress)
+        {
+            return 1f - Mathf.Clamp01(progress);
+        }
     }
 }

@@ -134,5 +134,96 @@ namespace Jagara.Tests.EditMode
 
             Assert.AreEqual(expected, value);
         }
+
+        [TestCase(0f)]
+        [TestCase(1f)]
+        public void ComputeAttackLungeOffset_IsZero_AtStartAndEnd(float progress)
+        {
+            Vector2 offset = PlayerMotionAnimator.ComputeAttackLungeOffset(progress, Vector2.right, lungeDistance: 0.35f);
+
+            Assert.AreEqual(0f, offset.x, 1e-5f);
+            Assert.AreEqual(0f, offset.y, 1e-5f);
+        }
+
+        [Test]
+        public void ComputeAttackLungeOffset_PeaksAtMidpoint_AlongDirection()
+        {
+            const float lungeDistance = 0.35f;
+
+            Vector2 apex = PlayerMotionAnimator.ComputeAttackLungeOffset(0.5f, Vector2.right, lungeDistance);
+            Vector2 rising = PlayerMotionAnimator.ComputeAttackLungeOffset(0.25f, Vector2.right, lungeDistance);
+            Vector2 falling = PlayerMotionAnimator.ComputeAttackLungeOffset(0.75f, Vector2.right, lungeDistance);
+
+            Assert.AreEqual(lungeDistance, apex.x, 1e-5f);
+            Assert.AreEqual(0f, apex.y, 1e-5f);
+            Assert.Greater(apex.x, rising.x);
+            Assert.Greater(apex.x, falling.x);
+        }
+
+        [Test]
+        public void ComputeAttackLungeOffset_ScalesAlongGivenDirection()
+        {
+            Vector2 right = PlayerMotionAnimator.ComputeAttackLungeOffset(0.5f, Vector2.right, 0.35f);
+            Vector2 up = PlayerMotionAnimator.ComputeAttackLungeOffset(0.5f, Vector2.up, 0.35f);
+            Vector2 left = PlayerMotionAnimator.ComputeAttackLungeOffset(0.5f, Vector2.left, 0.35f);
+
+            Assert.AreEqual(0.35f, right.x, 1e-5f);
+            Assert.AreEqual(0f, right.y, 1e-5f);
+            Assert.AreEqual(0.35f, up.y, 1e-5f);
+            Assert.AreEqual(0f, up.x, 1e-5f);
+            Assert.AreEqual(-0.35f, left.x, 1e-5f);
+            Assert.AreEqual(0f, left.y, 1e-5f);
+        }
+
+        [Test]
+        public void ComputeHitShakeOffset_IsZero_AtStartAndEnd()
+        {
+            float start = PlayerMotionAnimator.ComputeHitShakeOffset(0f, magnitude: 0.08f);
+            float end = PlayerMotionAnimator.ComputeHitShakeOffset(1f, magnitude: 0.08f);
+
+            Assert.AreEqual(0f, start, 1e-5f);
+            Assert.AreEqual(0f, end, 1e-5f);
+        }
+
+        [Test]
+        public void ComputeHitShakeOffset_IsDeterministic_ForSameInputs()
+        {
+            float a = PlayerMotionAnimator.ComputeHitShakeOffset(0.4f, 0.08f);
+            float b = PlayerMotionAnimator.ComputeHitShakeOffset(0.4f, 0.08f);
+
+            Assert.AreEqual(a, b);
+        }
+
+        [Test]
+        public void ComputeHitShakeOffset_AmplitudeDecaysAsProgressAdvances()
+        {
+            // Both samples land on a quarter-cycle peak (sin = 1 exactly, given
+            // the fixed 3-oscillation curve), so only the (1 - progress) decay
+            // factor differs between them - the later sample must be smaller.
+            const float magnitude = 0.08f;
+            float early = Mathf.Abs(PlayerMotionAnimator.ComputeHitShakeOffset(1f / 12f, magnitude));
+            float late = Mathf.Abs(PlayerMotionAnimator.ComputeHitShakeOffset(1f / 12f + 2f / 3f, magnitude));
+
+            Assert.Greater(early, late);
+        }
+
+        [TestCase(0f, 1f)]
+        [TestCase(1f, 0f)]
+        [TestCase(0.5f, 0.5f)]
+        public void ComputeHitFlashIntensity_FadesLinearlyFromOneToZero(float progress, float expected)
+        {
+            float intensity = PlayerMotionAnimator.ComputeHitFlashIntensity(progress);
+
+            Assert.AreEqual(expected, intensity, 1e-5f);
+        }
+
+        [TestCase(-0.5f, 1f)]
+        [TestCase(1.5f, 0f)]
+        public void ComputeHitFlashIntensity_ClampsOutOfRangeProgress(float progress, float expected)
+        {
+            float intensity = PlayerMotionAnimator.ComputeHitFlashIntensity(progress);
+
+            Assert.AreEqual(expected, intensity, 1e-5f);
+        }
     }
 }
