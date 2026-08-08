@@ -37,6 +37,7 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private float hitShakeMagnitude = 0.08f;
         [SerializeField] private float hitDuration = 0.33f;
         [SerializeField] private Color hitFlashColor = Color.white;
+        [SerializeField] private ParticleSystem hitParticles;
 
         [Header("Death")]
         [SerializeField] private int deathBlinkCount = 5;
@@ -190,6 +191,7 @@ namespace Jagara.Runtime.Gameplay
                 StopCoroutine(hitCoroutine);
             }
 
+            hitParticles?.Play();
             hitCoroutine = StartCoroutine(HitReactionRoutine());
         }
 
