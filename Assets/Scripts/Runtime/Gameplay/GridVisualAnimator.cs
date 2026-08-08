@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using UnityEngine;
 
 namespace Jagara.Runtime.Gameplay
@@ -5,9 +7,11 @@ namespace Jagara.Runtime.Gameplay
     /// <summary>
     /// Drives an entity's procedural animation on the Visual child: idle
     /// breathing bob while stationary, a hop with squash-stretch during the
-    /// grid tween, and flipX facing. Only touches the child's localPosition
-    /// and localScale, so it never fights GridMover, which tweens the
-    /// root. Math lives in PlayerMotionAnimator (Edit Mode testable).
+    /// grid tween, an attack lunge-and-return, and a hit-reaction
+    /// flash+shake overlay - plus flipX facing. Only touches the child's
+    /// localPosition/localScale/color, so it never fights GridMover, which
+    /// tweens the root. Math lives in PlayerMotionAnimator (Edit Mode
+    /// testable).
     /// </summary>
     [RequireComponent(typeof(SpriteRenderer))]
     public class GridVisualAnimator : MonoBehaviour
@@ -20,8 +24,32 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private float squashAmount = 0.06f;
         [SerializeField] private bool spriteFacesLeft = true;
 
+        [Header("Attack lunge")]
+        [SerializeField] private float attackLungeDistance = 0.35f;
+        [SerializeField] private float attackDuration = 0.16f;
+
+        [Header("Hit reaction")]
+        [SerializeField] private float hitShakeMagnitude = 0.08f;
+        [SerializeField] private float hitDuration = 0.22f;
+        [SerializeField] private Color hitFlashColor = Color.white;
+
         private Vector3 baseLocalPosition;
         private float spriteHeight;
+        private Color originalColor;
+
+        // Attack lunge state - a third, mutually exclusive pose alongside
+        // idle/move-hop (see LateUpdate).
+        private bool isAttacking;
+        private float attackProgress;
+        private Vector2Int attackDirection;
+        private Action attackCompleteCallback;
+        private Coroutine attackCoroutine;
+
+        // Hit-reaction state - an overlay on top of whichever pose is
+        // active, not a pose of its own.
+        private bool isHit;
+        private float hitProgress;
+        private Coroutine hitCoroutine;
 
         private void Awake()
         {
@@ -43,6 +71,7 @@ namespace Jagara.Runtime.Gameplay
             }
 
             baseLocalPosition = transform.localPosition;
+            originalColor = spriteRenderer.color;
             RefreshSpriteMetrics();
         }
 
@@ -72,6 +101,26 @@ namespace Jagara.Runtime.Gameplay
             {
                 mover.OnMoveStarted -= HandleMoveStarted;
             }
+
+            // Coroutines are already stopped implicitly on disable, but their
+            // state flags and pending callback are not cleared automatically -
+            // do that here so a later re-enable doesn't resume a stale pose,
+            // and so a lunge disabled mid-flight never fires a stale callback.
+            if (attackCoroutine != null)
+            {
+                StopCoroutine(attackCoroutine);
+                attackCoroutine = null;
+                isAttacking = false;
+                attackCompleteCallback = null;
+            }
+
+            if (hitCoroutine != null)
+            {
+                StopCoroutine(hitCoroutine);
+                hitCoroutine = null;
+                isHit = false;
+                spriteRenderer.color = originalColor;
+            }
         }
 
         private void HandleMoveStarted(Vector2Int direction)
@@ -79,25 +128,111 @@ namespace Jagara.Runtime.Gameplay
             spriteRenderer.flipX = PlayerMotionAnimator.ComputeFlipX(direction.x, spriteRenderer.flipX, spriteFacesLeft);
         }
 
+        /// <summary>
+        /// Plays a bump-and-return lunge toward <paramref name="direction"/> (a unit
+        /// cardinal vector), setting facing immediately. Calls <paramref name="onComplete"/>
+        /// once the lunge has returned to rest - callers (PlayerController,
+        /// EnemyController) use this to know when it's safe to end the turn.
+        /// Restarting mid-lunge stops the previous coroutine first.
+        /// </summary>
+        public void PlayAttack(Vector2Int direction, Action onComplete = null)
+        {
+            if (attackCoroutine != null)
+            {
+                StopCoroutine(attackCoroutine);
+            }
+
+            attackDirection = direction;
+            spriteRenderer.flipX = PlayerMotionAnimator.ComputeFlipX(direction.x, spriteRenderer.flipX, spriteFacesLeft);
+            attackCompleteCallback = onComplete;
+            attackCoroutine = StartCoroutine(AttackRoutine());
+        }
+
+        /// <summary>
+        /// Plays a flash+shake hit reaction. Purely cosmetic - never reports
+        /// completion and never blocks anything. Restarting mid-reaction stops
+        /// the previous coroutine first.
+        /// </summary>
+        public void PlayHitReaction()
+        {
+            if (hitCoroutine != null)
+            {
+                StopCoroutine(hitCoroutine);
+            }
+
+            hitCoroutine = StartCoroutine(HitReactionRoutine());
+        }
+
+        private IEnumerator AttackRoutine()
+        {
+            isAttacking = true;
+            float elapsed = 0f;
+
+            while (elapsed < attackDuration)
+            {
+                elapsed += Time.deltaTime;
+                attackProgress = Mathf.Clamp01(elapsed / attackDuration);
+                yield return null;
+            }
+
+            attackProgress = 1f;
+            isAttacking = false;
+            attackCoroutine = null;
+
+            Action callback = attackCompleteCallback;
+            attackCompleteCallback = null;
+            callback?.Invoke();
+        }
+
+        private IEnumerator HitReactionRoutine()
+        {
+            isHit = true;
+            float elapsed = 0f;
+
+            while (elapsed < hitDuration)
+            {
+                elapsed += Time.deltaTime;
+                hitProgress = Mathf.Clamp01(elapsed / hitDuration);
+                yield return null;
+            }
+
+            isHit = false;
+            hitCoroutine = null;
+            spriteRenderer.color = originalColor;
+        }
+
         // LateUpdate so the mover's coroutine (which runs after Update) has
         // already written this frame's MoveProgress before we sample it.
         private void LateUpdate()
         {
-            float yOffset;
+            Vector3 baseOffset;
             Vector2 scale;
 
             if (mover.IsMoving)
             {
-                yOffset = PlayerMotionAnimator.ComputeHopHeight(mover.MoveProgress, hopHeight);
+                baseOffset = new Vector3(0f, PlayerMotionAnimator.ComputeHopHeight(mover.MoveProgress, hopHeight), 0f);
                 scale = PlayerMotionAnimator.ComputeHopScale(mover.MoveProgress, squashAmount);
+            }
+            else if (isAttacking)
+            {
+                Vector2 lunge = PlayerMotionAnimator.ComputeAttackLungeOffset(attackProgress, attackDirection, attackLungeDistance);
+                baseOffset = new Vector3(lunge.x, lunge.y, 0f);
+                scale = PlayerMotionAnimator.ComputeHopScale(attackProgress, squashAmount);
             }
             else
             {
                 scale = PlayerMotionAnimator.ComputeIdleBreathScale(Time.time, idleBreathAmount, idleBreathSpeed);
-                yOffset = PlayerMotionAnimator.ComputeGroundedOffset(scale.y, spriteHeight);
+                baseOffset = new Vector3(0f, PlayerMotionAnimator.ComputeGroundedOffset(scale.y, spriteHeight), 0f);
             }
 
-            transform.localPosition = baseLocalPosition + new Vector3(0f, yOffset, 0f);
+            Vector3 hitOffset = Vector3.zero;
+            if (isHit)
+            {
+                hitOffset = new Vector3(PlayerMotionAnimator.ComputeHitShakeOffset(hitProgress, hitShakeMagnitude), 0f, 0f);
+                spriteRenderer.color = Color.Lerp(originalColor, hitFlashColor, PlayerMotionAnimator.ComputeHitFlashIntensity(hitProgress));
+            }
+
+            transform.localPosition = baseLocalPosition + baseOffset + hitOffset;
             transform.localScale = new Vector3(scale.x, scale.y, 1f);
         }
     }
