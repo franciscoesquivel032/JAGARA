@@ -6,6 +6,7 @@ using Jagara.Runtime.DungeonGen;
 using Jagara.Runtime.Gameplay;
 using Jagara.Runtime.Resources;
 using Jagara.Runtime.TurnSystem;
+using Jagara.Runtime.UI;
 
 namespace Jagara.Runtime.Enemies
 {
@@ -22,6 +23,7 @@ namespace Jagara.Runtime.Enemies
         private GridMover mover;
         private SpriteRenderer spriteRenderer;
         private GridVisualAnimator visualAnimator;
+        private HpPopupBinder hpPopupBinder;
 
         private EnemyConfigSO config;
         private EnemyAIContext context;
@@ -48,6 +50,7 @@ namespace Jagara.Runtime.Enemies
             mover = GetComponent<GridMover>();
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
             visualAnimator = GetComponentInChildren<GridVisualAnimator>();
+            hpPopupBinder = GetComponentInChildren<HpPopupBinder>();
 
             if (spriteRenderer == null)
             {
@@ -68,6 +71,8 @@ namespace Jagara.Runtime.Enemies
             {
                 health.OnHPChanged -= HandleHPChanged;
             }
+
+            hpPopupBinder?.Unbind();
 
             if (resolver == null)
             {
@@ -97,6 +102,7 @@ namespace Jagara.Runtime.Enemies
             state = EnemyAIState.Dormant;
             health = new HealthState(config.BaseMaxHP);
             health.OnHPChanged += HandleHPChanged;
+            hpPopupBinder?.Bind(health);
 
             if (spriteRenderer != null)
             {

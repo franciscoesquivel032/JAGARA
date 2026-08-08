@@ -48,6 +48,7 @@ namespace Jagara.Runtime.Gameplay
 
         private HealthBarBinder healthBarBinder;
         private ParanoiaBarBinder paranoiaBarBinder;
+        private HpPopupBinder hpPopupBinder;
         private GridVisualAnimator visualAnimator;
 
         private InputAction moveAction;
@@ -85,6 +86,7 @@ namespace Jagara.Runtime.Gameplay
 
             healthBarBinder = GetComponentInChildren<HealthBarBinder>();
             paranoiaBarBinder = GetComponentInChildren<ParanoiaBarBinder>();
+            hpPopupBinder = GetComponentInChildren<HpPopupBinder>();
             visualAnimator = GetComponentInChildren<GridVisualAnimator>();
 
             if (healthBarBinder == null)
@@ -95,6 +97,11 @@ namespace Jagara.Runtime.Gameplay
             if (paranoiaBarBinder == null)
             {
                 Debug.LogError($"PlayerController on {name}: no ParanoiaBarBinder found in children; the player will have no paranoia bar.");
+            }
+
+            if (hpPopupBinder == null)
+            {
+                Debug.LogError($"PlayerController on {name}: no HpPopupBinder found in children; the player will show no HP popups.");
             }
 
             if (inventory == null)
@@ -130,6 +137,7 @@ namespace Jagara.Runtime.Gameplay
                 stats.Health.OnHPChanged -= HandleHPChanged;
                 healthBarBinder?.Unbind();
                 paranoiaBarBinder?.Unbind();
+                hpPopupBinder?.Unbind();
             }
 
             if (turnResolver != null)
@@ -186,6 +194,7 @@ namespace Jagara.Runtime.Gameplay
             stats.Health.OnHPChanged += HandleHPChanged;
             healthBarBinder?.Bind(stats.Health);
             paranoiaBarBinder?.Bind(stats.Paranoia);
+            hpPopupBinder?.Bind(stats.Health);
         }
 
         private void Update()
