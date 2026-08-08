@@ -50,7 +50,12 @@ namespace Jagara.Tests.EditMode
         [TearDown]
         public void TearDown()
         {
-            Object.DestroyImmediate(moverGO);
+            // Null-checked: a test may destroy the mover itself to exercise OnDestroy.
+            if (moverGO != null)
+            {
+                Object.DestroyImmediate(moverGO);
+            }
+
             Object.DestroyImmediate(tilemapGO);
         }
 
@@ -141,6 +146,46 @@ namespace Jagara.Tests.EditMode
             // The in-flight move's destination is untouched by the ignored StepTo call.
             Assert.AreEqual(new Vector2Int(1, 2), mover.CurrentCell);
             Assert.IsFalse(occupancy.IsOccupied(new Vector2Int(2, 2)));
+        }
+
+        [Test]
+        public void ReleaseCell_VacatesImmediatelyWithoutWaitingForDestroy()
+        {
+            mover.Initialize(floor, tilemap, new Vector2Int(1, 1), occupancy);
+
+            mover.ReleaseCell();
+
+            // Unity defers Destroy to the end of the frame; a dead entity must free
+            // its tile at the moment it dies, not one frame later.
+            Assert.IsFalse(occupancy.IsOccupied(new Vector2Int(1, 1)));
+        }
+
+        /// <summary>
+        /// The scenario this protects against is ReleaseCell (on death) followed by
+        /// OnDestroy (end of frame) with someone else having taken the freed tile in
+        /// between - a second, unconditional Vacate would evict the new occupant.
+        /// OnDestroy cannot be driven from Edit Mode (DestroyImmediate does not
+        /// dispatch lifecycle messages to a runtime-added MonoBehaviour here, the same
+        /// gap EnemyControllerTests documents for Awake/OnEnable), so this calls the
+        /// method OnDestroy routes through directly. The dispatch itself is left to
+        /// Play Mode / manual verification.
+        /// </summary>
+        [Test]
+        public void ReleaseCell_CalledTwice_DoesNotEvictWhoeverTookTheCell()
+        {
+            mover.Initialize(floor, tilemap, new Vector2Int(1, 1), occupancy);
+            mover.ReleaseCell();
+
+            var successor = new GameObject("Successor");
+            occupancy.Occupy(new Vector2Int(1, 1), successor);
+
+            mover.ReleaseCell();
+
+            Assert.IsTrue(occupancy.IsOccupied(new Vector2Int(1, 1)), "A second vacate must not clear the new occupant.");
+            Assert.IsTrue(occupancy.TryGetOccupant(new Vector2Int(1, 1), out GameObject occupant));
+            Assert.AreSame(successor, occupant);
+
+            Object.DestroyImmediate(successor);
         }
 
         [Test]

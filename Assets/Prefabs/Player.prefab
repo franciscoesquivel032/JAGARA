@@ -342,7 +342,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 21300000, guid: 56c765d2079d8244eb1b56887c4b3013, type: 3}
   m_Type: 3
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -492,7 +492,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 21300000, guid: 56c765d2079d8244eb1b56887c4b3013, type: 3}
   m_Type: 3
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -967,6 +967,6 @@ MonoBehaviour:
   itemDroppedMessage: {fileID: 11400000, guid: a942eb13d417b9144854365282871db3, type: 2}
   attackMessage: {fileID: 11400000, guid: 41bb30b914d910d468295b36c3a858ee, type: 2}
   enemyDefeatedMessage: {fileID: 11400000, guid: 40f91c4dcf7a8a349a7ae63044fe5754, type: 2}
-  playerDefeatedMessage: {fileID: 11400000, guid: b211949719ff45742a0741ce59ac2177, type: 2}
   incomingAttackMessage: {fileID: 11400000, guid: ab404ef5e5945b94f847ad6829af97b4, type: 2}
   incomingMultiAttackMessage: {fileID: 11400000, guid: 0c4cf14d8b7cd2c48ba85e695fcc4351, type: 2}
+  playerDefeatedDialogue: {fileID: 11400000, guid: 336a926a5d1be5848a7db6c8e4731b46, type: 2}

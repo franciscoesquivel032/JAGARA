@@ -30,6 +30,9 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private PlayerStatusHudController statusHud;
 
         [Header("Narrative")]
+        [Tooltip("Threaded into PlayerController at spawn (a scene object can't be serialized into the player prefab). Used for the Voice's line on death.")]
+        [SerializeField] private DialoguePanelController dialoguePanel;
+
         [SerializeField] private GameplayInputGateSO inputGate;
         [SerializeField] private MessageLogSO messageLog;
         [SerializeField] private MessageTemplateSO floorEnteredMessage;
@@ -151,7 +154,12 @@ namespace Jagara.Runtime.Gameplay
             actionMenu?.Initialize(turnResolver);
             itemActionPanel?.Initialize(controller);
 
-            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, itemsOnFloor, itemPrefab);
+            if (dialoguePanel == null)
+            {
+                Debug.LogWarning("NightmareBootstrap: dialoguePanel reference is not assigned; the Voice will not speak when the player dies.");
+            }
+
+            controller.Initialize(floor, tilemap, spawnCell, turnResolver, occupancy, itemsOnFloor, itemPrefab, dialoguePanel);
             statusHud?.Bind(controller.Stats.Health, controller.Stats.Paranoia);
 
             if (cameraFollow != null)

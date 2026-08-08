@@ -17,5 +17,5 @@ MonoBehaviour:
   moveDuration: 0.13
   detectionRange: 6
   forgetRange: 10
-  vigor: 2
-  poder: 4
+  baseMaxHP: 10
+  baseAttackDamage: 5

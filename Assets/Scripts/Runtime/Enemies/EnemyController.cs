@@ -30,7 +30,7 @@ namespace Jagara.Runtime.Enemies
 
         private EnemyAIState state = EnemyAIState.Dormant;
 
-        /// <summary>This enemy instance's runtime HP, seeded from config.Vigor at Initialize.</summary>
+        /// <summary>This enemy instance's runtime HP, seeded from config.BaseMaxHP at Initialize.</summary>
         public HealthState Health => health;
 
         /// <summary>The enemy type's display name, for attacker-side messaging (e.g. PlayerController's bump-attack log lines).</summary>
@@ -90,7 +90,7 @@ namespace Jagara.Runtime.Enemies
             this.context = context;
             this.resolver = resolver;
             state = EnemyAIState.Dormant;
-            health = new HealthState(StatFormulas.ComputeMaxHP(config.Vigor));
+            health = new HealthState(config.BaseMaxHP);
 
             if (spriteRenderer != null)
             {
@@ -171,18 +171,22 @@ namespace Jagara.Runtime.Enemies
         /// </summary>
         private void PerformAttack()
         {
-            CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(config.Poder, context.PlayerStats.Health);
+            CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(config.BaseAttackDamage, context.PlayerStats.Health);
             context.PlayerStats.RecordIncomingAttack(config.DisplayName, result.Damage);
         }
 
         /// <summary>
         /// Called by an attacker (e.g. PlayerController after a killing bump-attack)
-        /// once this enemy's HP reaches 0. Unregisters from the turn resolver and
-        /// destroys the GameObject - GridMover.OnDestroy already vacates occupancy.
+        /// once this enemy's HP reaches 0. Unregisters from the turn resolver so it
+        /// cannot act again, frees its tile immediately, then destroys the GameObject.
+        /// The explicit ReleaseCell matters because Destroy is deferred to the end of
+        /// the frame: relying on GridMover.OnDestroy alone would leave the corpse
+        /// blocking its tile for the remainder of the turn it died on.
         /// </summary>
         public void Die()
         {
             resolver.UnregisterActor(this);
+            mover.ReleaseCell();
             Destroy(gameObject);
         }
     }

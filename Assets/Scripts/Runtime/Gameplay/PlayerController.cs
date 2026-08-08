@@ -7,6 +7,7 @@ using Jagara.Runtime.Data;
 using Jagara.Runtime.DungeonGen;
 using Jagara.Runtime.Enemies;
 using Jagara.Runtime.Narrative;
+using Jagara.Runtime.Narrative.Dialogue;
 using Jagara.Runtime.TurnSystem;
 using Jagara.Runtime.UI;
 
@@ -35,9 +36,12 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private MessageTemplateSO itemDroppedMessage;
         [SerializeField] private MessageTemplateSO attackMessage;
         [SerializeField] private MessageTemplateSO enemyDefeatedMessage;
-        [SerializeField] private MessageTemplateSO playerDefeatedMessage;
         [SerializeField] private MessageTemplateSO incomingAttackMessage;
         [SerializeField] private MessageTemplateSO incomingMultiAttackMessage;
+
+        [Header("Defeat")]
+        [Tooltip("Spoken by the Voice when the player's HP reaches 0. A dialogue rather than a log line - death is a narrative beat, not another combat entry scrolling past.")]
+        [SerializeField] private DialogueSO playerDefeatedDialogue;
 
         public GridMover Mover => mover;
         public PlayerStatsSO Stats => stats;
@@ -46,11 +50,27 @@ namespace Jagara.Runtime.Gameplay
         private ParanoiaBarBinder paranoiaBarBinder;
 
         private InputAction moveAction;
+
+        // Keeps a bump-attack to one action per press. Without it a held key
+        // commits an attack (and a full turn of enemy retaliation) every frame,
+        // because - unlike a move - an attack has no tween to gate on.
+        private readonly BumpAttackLatch attackLatch = new();
+
         private TurnResolver turnResolver;
         private OccupancyGrid occupancy;
         private Dictionary<Vector2Int, ItemMarker> itemsOnFloor;
         private Tilemap tilemap;
         private GameObject itemPrefab;
+
+        // Scene object, so it cannot be serialized into this prefab - threaded in
+        // through Initialize, the same way the tilemap and occupancy grid are.
+        private DialoguePanelController dialoguePanel;
+
+        // Set the instant HP hits 0, consumed when the turn finishes. Death is
+        // raised from inside an enemy's attack, halfway through turn resolution,
+        // but the player has to read the blow that killed them before the Voice
+        // speaks over it - so only the input freeze happens immediately.
+        private bool deathPending;
 
         private void Awake()
         {
@@ -90,13 +110,6 @@ namespace Jagara.Runtime.Gameplay
         {
             moveAction.Enable();
             mover.OnMoveCompleted += HandleMoveCompleted;
-
-            if (stats != null)
-            {
-                stats.Health.OnDeath += HandleDeath;
-                healthBarBinder?.Bind(stats.Health);
-                paranoiaBarBinder?.Bind(stats.Paranoia);
-            }
         }
 
         private void OnDisable()
@@ -104,7 +117,7 @@ namespace Jagara.Runtime.Gameplay
             moveAction.Disable();
             mover.OnMoveCompleted -= HandleMoveCompleted;
 
-            if (stats != null)
+            if (stats != null && stats.Health != null)
             {
                 stats.Health.OnDeath -= HandleDeath;
                 healthBarBinder?.Unbind();
@@ -117,34 +130,80 @@ namespace Jagara.Runtime.Gameplay
             }
         }
 
-        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy, Dictionary<Vector2Int, ItemMarker> itemsOnFloor, GameObject itemPrefab)
+        public void Initialize(FloorData floor, Tilemap tilemap, Vector2Int startCell, TurnResolver resolver, OccupancyGrid occupancy, Dictionary<Vector2Int, ItemMarker> itemsOnFloor, GameObject itemPrefab, DialoguePanelController dialoguePanel)
         {
             turnResolver = resolver;
             this.occupancy = occupancy;
             this.itemsOnFloor = itemsOnFloor;
             this.tilemap = tilemap;
             this.itemPrefab = itemPrefab;
+            this.dialoguePanel = dialoguePanel;
+            attackLatch.Clear();
+            deathPending = false;
             mover.Initialize(floor, tilemap, startCell, occupancy);
 
             turnResolver.OnPlayerTurnEnded += HandleTurnEnded;
+
+            BindStats();
+        }
+
+        /// <summary>
+        /// Subscribes to Health/Paranoia and binds the HP/Paranoia bars. Called
+        /// from Initialize rather than OnEnable: OnEnable fires implicitly the
+        /// instant NightmareBootstrap.SpawnPlayer's Instantiate() call runs,
+        /// with no guarantee PlayerStatsSO.ResetRuntimeState() (which creates
+        /// Health/Paranoia) has completed by then - it races, and losing that
+        /// race means stats.Health is null here, throwing and silently
+        /// aborting the rest of OnEnable (Unity swallows exceptions thrown
+        /// from lifecycle methods), which permanently orphans both bars for
+        /// the rest of the session. Initialize is called explicitly by
+        /// SpawnPlayer strictly after NightmareBootstrap.Start() has already
+        /// called ResetRuntimeState, so there is no ordering ambiguity here.
+        /// </summary>
+        private void BindStats()
+        {
+            if (stats == null)
+            {
+                return;
+            }
+
+            if (stats.Health == null || stats.Paranoia == null)
+            {
+                Debug.LogError($"PlayerController on {name}: stats.Health/Paranoia is still null at Initialize; HP/Paranoia bars will not be bound.");
+                return;
+            }
+
+            stats.Health.OnDeath += HandleDeath;
+            healthBarBinder?.Bind(stats.Health);
+            paranoiaBarBinder?.Bind(stats.Paranoia);
         }
 
         private void Update()
         {
+            Vector2Int direction = CardinalDirectionResolver.Resolve(moveAction.ReadValue<Vector2>());
+
+            // Observed before the "can I act?" checks below, so a key released while
+            // a tween or an enemy turn is still resolving still clears the latch -
+            // otherwise the player's next press would be swallowed.
+            attackLatch.Observe(direction);
+
             if (mover.IsMoving || (turnResolver != null && turnResolver.IsResolving) || (inputGate != null && inputGate.IsBlocked))
             {
                 return;
             }
 
-            Vector2Int direction = CardinalDirectionResolver.Resolve(moveAction.ReadValue<Vector2>());
-            if (direction == Vector2Int.zero)
+            if (direction == Vector2Int.zero || attackLatch.IsHeld)
             {
                 return;
             }
 
             Vector2Int target = mover.CurrentCell + direction;
-            if (occupancy != null && occupancy.TryGetOccupant(target, out GameObject occupant) && occupant.TryGetComponent(out EnemyController enemy))
+            if (TryGetAttackTarget(target, out EnemyController enemy))
             {
+                // Attacking and moving are separate actions: latching this direction
+                // is what stops the same held key from also walking the player into
+                // the tile once the enemy dies and vacates it.
+                attackLatch.Latch(direction);
                 PerformAttack(enemy);
                 return;
             }
@@ -153,9 +212,31 @@ namespace Jagara.Runtime.Gameplay
         }
 
         /// <summary>
+        /// True when <paramref name="cell"/> holds a living enemy - i.e. input toward
+        /// it means "attack", not "step". An enemy destroyed earlier this frame can
+        /// still be listed in the occupancy grid (Destroy is deferred to end of frame)
+        /// and a dying one can still be mid-teardown, so the destroyed/dead checks here
+        /// are what keep a corpse from soaking a second attack and a second turn.
+        /// </summary>
+        private bool TryGetAttackTarget(Vector2Int cell, out EnemyController enemy)
+        {
+            enemy = null;
+
+            if (occupancy == null || !occupancy.TryGetOccupant(cell, out GameObject occupant) || occupant == null)
+            {
+                return false;
+            }
+
+            return occupant.TryGetComponent(out enemy) && enemy.Health != null && !enemy.Health.IsDead;
+        }
+
+        /// <summary>
         /// Resolves a basic bump-attack (no PP cost) against an adjacent enemy
         /// instead of moving into its tile. Ends the turn directly since there's
         /// no move tween to wait for (unlike HandleMoveCompleted's movement path).
+        /// The damage line is posted on a killing blow too, not just a surviving
+        /// hit - otherwise the one attack whose number matters most is the one the
+        /// log never shows.
         /// </summary>
         private void PerformAttack(EnemyController enemy)
         {
@@ -164,26 +245,35 @@ namespace Jagara.Runtime.Gameplay
                 return;
             }
 
-            CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(stats.Poder, enemy.Health);
+            CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(stats.AttackDamage, enemy.Health);
+            Post(attackMessage, StyledName.Enemy(enemy.DisplayName), result.Damage);
 
             if (result.DefenderDied)
             {
                 Post(enemyDefeatedMessage, StyledName.Enemy(enemy.DisplayName));
                 enemy.Die();
             }
-            else
-            {
-                Post(attackMessage, StyledName.Enemy(enemy.DisplayName), result.Damage);
-            }
 
             turnResolver?.EndPlayerTurn();
         }
 
-        /// <summary>Applies one turn's worth of Paranoia gain and posts a combined incoming-attack message. Fires from every player action that ends a turn (move, bump-attack, item use).</summary>
+        /// <summary>
+        /// Applies one turn's worth of Paranoia gain and posts a combined
+        /// incoming-attack message. Fires from every player action that ends a turn
+        /// (move, bump-attack, item use). A death that happened during this turn is
+        /// presented last, so the killing blow's damage line is already on screen
+        /// before the Voice speaks.
+        /// </summary>
         private void HandleTurnEnded()
         {
             stats?.ApplyTurnParanoiaGain();
             PostIncomingAttackMessage();
+
+            if (deathPending)
+            {
+                deathPending = false;
+                PlayDefeatDialogue();
+            }
         }
 
         /// <summary>
@@ -211,14 +301,45 @@ namespace Jagara.Runtime.Gameplay
         }
 
         /// <summary>
-        /// Placeholder death handling: [PENDIENTE] the GDD's nightmare-failure
-        /// system (bank loss, Paranoia reset to half) needs the Hub, which
-        /// doesn't exist yet. For now, just log it and freeze input.
+        /// Raised the moment HP reaches 0 - which is mid-turn, from inside the
+        /// attack that killed the player. Only the input freeze belongs here; the
+        /// Voice's line waits for HandleTurnEnded so it lands after the damage
+        /// message rather than on top of it. The freeze is deliberately NOT
+        /// deferred: nothing the player presses between the killing blow and the
+        /// Voice speaking should reach the grid.
+        /// <para>
+        /// [PENDIENTE] the GDD's nightmare-failure system (bank loss, Paranoia
+        /// reset to half) needs the Hub, which doesn't exist yet - the block is
+        /// never released, so the run simply stops here.
+        /// </para>
         /// </summary>
         private void HandleDeath()
         {
-            Post(playerDefeatedMessage);
+            deathPending = true;
             inputGate?.PushBlock();
+        }
+
+        /// <summary>
+        /// Hands the player's death to the Voice. The dialogue panel takes and
+        /// releases its own input block, which is why HandleDeath pushes a separate
+        /// one that outlives it - otherwise dismissing the Voice's last line would
+        /// hand control back to a corpse.
+        /// </summary>
+        private void PlayDefeatDialogue()
+        {
+            if (playerDefeatedDialogue == null)
+            {
+                Debug.LogError($"PlayerController on {name}: playerDefeatedDialogue is not assigned; the player's death will pass unremarked.");
+                return;
+            }
+
+            if (dialoguePanel == null)
+            {
+                Debug.LogError($"PlayerController on {name}: no dialogue panel was supplied to Initialize; the player's death will pass unremarked.");
+                return;
+            }
+
+            dialoguePanel.Play(playerDefeatedDialogue);
         }
 
         private void HandleMoveCompleted()

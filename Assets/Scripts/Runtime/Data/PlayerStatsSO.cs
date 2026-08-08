@@ -44,6 +44,13 @@ namespace Jagara.Runtime.Data
         public int Poder => poder;
         public int Voluntad => voluntad;
 
+        // The stat -> resource conversion lives here rather than at the call
+        // sites, so PlayerController never has to know StatFormulas exists -
+        // and so the player stays the only actor running on stats (enemies
+        // author their HP/damage directly on EnemyConfigSO).
+        public int MaxHP => StatFormulas.ComputeMaxHP(vigor);
+        public int AttackDamage => StatFormulas.ComputeAttackDamage(poder);
+
         public HealthState Health { get; private set; }
         public ParanoiaState Paranoia { get; private set; }
 
@@ -63,7 +70,7 @@ namespace Jagara.Runtime.Data
         /// </summary>
         public void ResetRuntimeState()
         {
-            Health = new HealthState(StatFormulas.ComputeMaxHP(vigor));
+            Health = new HealthState(MaxHP);
             Paranoia = new ParanoiaState(maxParanoia);
             stepsSinceLastParanoiaGain = 0;
             turnDamageTaken = 0;

@@ -4,7 +4,6 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Tilemaps;
-using Jagara.Runtime.Combat;
 using Jagara.Runtime.Data;
 using Jagara.Runtime.DungeonGen;
 using Jagara.Runtime.Enemies;
@@ -104,13 +103,15 @@ namespace Jagara.Tests.EditMode
             playerMover.Initialize(floor, tilemap, cell, occupancy);
         }
 
-        private void SpawnEnemy(Vector2Int cell, int detectionRange, int forgetRange)
+        private void SpawnEnemy(Vector2Int cell, int detectionRange, int forgetRange, int baseMaxHP = 30, int baseAttackDamage = 3)
         {
             config = ScriptableObject.CreateInstance<EnemyConfigSO>();
             var serialized = new SerializedObject(config);
             serialized.FindProperty("detectionRange").intValue = detectionRange;
             serialized.FindProperty("forgetRange").intValue = forgetRange;
             serialized.FindProperty("moveDuration").floatValue = 0f;
+            serialized.FindProperty("baseMaxHP").intValue = baseMaxHP;
+            serialized.FindProperty("baseAttackDamage").intValue = baseAttackDamage;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
             playerStats = ScriptableObject.CreateInstance<PlayerStatsSO>();
@@ -192,8 +193,8 @@ namespace Jagara.Tests.EditMode
 
             Assert.AreEqual(new Vector2Int(1, 0), enemyMover.CurrentCell, "An adjacent Chasing enemy must not move.");
             Assert.IsFalse(enemyMover.IsMoving);
-            Assert.AreEqual(StatFormulas.ComputeAttackDamage(config.Poder), hpBeforeAttack - playerStats.Health.Current,
-                "An adjacent Chasing enemy must bump-attack the player instead of moving.");
+            Assert.AreEqual(config.BaseAttackDamage, hpBeforeAttack - playerStats.Health.Current,
+                "An adjacent Chasing enemy must bump-attack the player instead of moving, for exactly its authored BaseAttackDamage.");
         }
 
         [Test]
@@ -218,6 +219,18 @@ namespace Jagara.Tests.EditMode
 
             Assert.AreEqual(new Vector2Int(2, 0), enemyMover.CurrentCell, "A forgotten (Dormant) enemy must not move.");
             Assert.IsFalse(enemyMover.IsMoving);
+        }
+
+        [Test]
+        public void Initialize_SeedsHealthFromConfigBaseMaxHP()
+        {
+            SpawnPlayer(new Vector2Int(0, 0));
+            SpawnEnemy(new Vector2Int(15, 0), detectionRange: 3, forgetRange: 5, baseMaxHP: 42, baseAttackDamage: 3);
+
+            // The authored number is the number in play: no formula sits between
+            // the asset and the spawned enemy's HP.
+            Assert.AreEqual(42, controller.Health.Max);
+            Assert.AreEqual(42, controller.Health.Current, "A freshly spawned enemy must start at full HP.");
         }
     }
 }

@@ -21,6 +21,9 @@ namespace Jagara.Runtime.Gameplay
         private Tilemap tilemap;
         private OccupancyGrid occupancy;
 
+        // Guards against vacating a cell twice - see ReleaseCell.
+        private bool cellReleased;
+
         public Vector2Int CurrentCell { get; private set; }
         public bool IsMoving { get; private set; }
 
@@ -99,9 +102,31 @@ namespace Jagara.Runtime.Gameplay
             StartCoroutine(MoveRoutine(tilemap.GetCellCenterWorld(new Vector3Int(targetCell.x, targetCell.y, 0))));
         }
 
+        /// <summary>
+        /// Vacates this entity's cell right now instead of waiting for OnDestroy.
+        /// Called by an entity that has just died (see EnemyController.Die): Unity
+        /// defers Destroy to the end of the frame, so without this the corpse keeps
+        /// blocking its tile for the rest of the turn it died on.
+        /// <para>
+        /// Idempotent, and OnDestroy routes through it, because the cell may well be
+        /// re-occupied by someone else before this GameObject is actually torn down -
+        /// a second, unconditional Vacate at that point would clear the NEW occupant.
+        /// </para>
+        /// </summary>
+        public void ReleaseCell()
+        {
+            if (cellReleased)
+            {
+                return;
+            }
+
+            cellReleased = true;
+            occupancy?.Vacate(CurrentCell);
+        }
+
         private void OnDestroy()
         {
-            occupancy?.Vacate(CurrentCell);
+            ReleaseCell();
         }
 
         private IEnumerator MoveRoutine(Vector3 targetWorldPos)

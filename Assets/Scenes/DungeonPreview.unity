@@ -30504,6 +30504,7 @@ MonoBehaviour:
   actionMenu: {fileID: 1818904492}
   itemActionPanel: {fileID: 1543290069}
   statusHud: {fileID: 919655104}
+  dialoguePanel: {fileID: 559835979}
   inputGate: {fileID: 11400000, guid: 3a21310a9cb8f1c4f954dd755de94860, type: 2}
   messageLog: {fileID: 11400000, guid: 46fd613be2ecb6d4a91abc3ef8ef287c, type: 2}
   floorEnteredMessage: {fileID: 11400000, guid: b3d9361c1b0229341811a0a6967e3147, type: 2}
@@ -33283,8 +33284,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -59.4, y: -24}
+  m_AnchoredPosition: {x: 0, y: -3}
+  m_SizeDelta: {x: -59.4, y: -30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1938220101
 MonoBehaviour:

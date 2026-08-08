@@ -7,14 +7,17 @@ namespace Jagara.Tests.EditMode
     public class CombatResolverTests
     {
         [Test]
-        public void ResolveBumpAttack_AppliesComputedDamageToDefender()
+        public void ResolveBumpAttack_AppliesGivenDamageToDefender()
         {
             var defenderHealth = new HealthState(50);
 
-            CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(3, defenderHealth);
+            CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(5, defenderHealth);
 
-            Assert.AreEqual(StatFormulas.ComputeAttackDamage(3), result.Damage);
-            Assert.AreEqual(50 - result.Damage, defenderHealth.Current);
+            // The resolver applies the damage it is handed, unchanged - it does
+            // not run it through StatFormulas, because enemies author their
+            // damage directly and only the player derives it from a stat.
+            Assert.AreEqual(5, result.Damage);
+            Assert.AreEqual(45, defenderHealth.Current);
         }
 
         [Test]
@@ -22,7 +25,7 @@ namespace Jagara.Tests.EditMode
         {
             var defenderHealth = new HealthState(1);
 
-            CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(0, defenderHealth);
+            CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(1, defenderHealth);
 
             Assert.IsTrue(result.DefenderDied);
             Assert.IsTrue(defenderHealth.IsDead);
@@ -33,9 +36,34 @@ namespace Jagara.Tests.EditMode
         {
             var defenderHealth = new HealthState(1000);
 
-            CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(0, defenderHealth);
+            CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(1, defenderHealth);
 
             Assert.IsFalse(result.DefenderDied);
+        }
+
+        [Test]
+        public void ResolveBumpAttack_Overkill_ReportsDamageActuallyApplied()
+        {
+            // 1 HP left, incoming damage is 2 - the log line must say 1, matching
+            // the health bar, not the 2 the attacker swung for.
+            var defenderHealth = new HealthState(1);
+
+            CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(2, defenderHealth);
+
+            Assert.AreEqual(1, result.Damage);
+        }
+
+        [Test]
+        public void ResolveBumpAttack_AlreadyDeadDefender_AppliesAndReportsNothing()
+        {
+            var defenderHealth = new HealthState(1);
+            CombatResolver.ResolveBumpAttack(1, defenderHealth);
+            Assert.IsTrue(defenderHealth.IsDead, "Precondition: the defender should already be dead.");
+
+            CombatResolver.AttackResult result = CombatResolver.ResolveBumpAttack(5, defenderHealth);
+
+            Assert.AreEqual(0, result.Damage, "Hitting a corpse must not report damage it did not deal.");
+            Assert.AreEqual(0, defenderHealth.Current);
         }
     }
 }

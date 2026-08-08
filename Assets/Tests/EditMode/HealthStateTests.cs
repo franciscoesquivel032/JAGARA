@@ -81,5 +81,42 @@ namespace Jagara.Tests.EditMode
             Assert.AreEqual(10, health.Current);
             Assert.IsFalse(changed);
         }
+
+        // The returned figure is what combat logs report. It must track the health
+        // bar exactly, or a line reading "hits for 6" appears over a 2 HP drop.
+
+        [Test]
+        public void TakeDamage_ReturnsTheHPActuallyRemoved()
+        {
+            var health = new HealthState(10);
+
+            Assert.AreEqual(4, health.TakeDamage(4));
+        }
+
+        [Test]
+        public void TakeDamage_Overkill_ReturnsOnlyTheHPThatWasLeft()
+        {
+            var health = new HealthState(5);
+
+            Assert.AreEqual(5, health.TakeDamage(999), "An overkill hit must report the 5 HP lost, not the 999 rolled.");
+        }
+
+        [Test]
+        public void TakeDamage_AfterDeath_ReturnsZero()
+        {
+            var health = new HealthState(5);
+            health.TakeDamage(5);
+
+            Assert.AreEqual(0, health.TakeDamage(3));
+        }
+
+        [Test]
+        public void TakeDamage_NonPositiveAmount_ReturnsZero()
+        {
+            var health = new HealthState(10);
+
+            Assert.AreEqual(0, health.TakeDamage(0));
+            Assert.AreEqual(0, health.TakeDamage(-5));
+        }
     }
 }
