@@ -2,6 +2,12 @@
 
 Status: approved
 Date: 2026-08-09
+Update (2026-08-09): scope narrowed to the player only — the `HitParticles` child, its
+`ParticleSystem`, and the `hitParticles` wiring were removed from `Assets/Prefabs/Enemy.prefab`.
+Enemies no longer play a burst when they take damage; the player still does, both when dealing a
+hit (enemy receives no burst) and when receiving one (player still bursts). The sections below are
+left as originally written for the two-entity design and should be read with this narrowing in
+mind — see "Out of scope" for the current state.
 
 ## Problem
 
@@ -11,7 +17,9 @@ radial spark burst at the moment a hit connects — a single shared "impact" eff
 receiving the damage, not two separate attacker/dealt and defender/received effects. Every attack
 has both an attacker and a defender, and the defender-side hook (`HealthState.OnHPChanged`) already
 fires symmetrically for both directions (player hits enemy → enemy receives the burst; enemy hits
-player → player receives the burst), so one hook covers "dealt" and "received" automatically.
+player → player receives the burst), so one hook covers "dealt" and "received" automatically. As
+originally designed this applied to both the player and enemies; per the 2026-08-09 update above,
+it is now player-only.
 
 ## Existing architecture this builds on
 
@@ -117,6 +125,13 @@ Editor in Edit Mode, then saved.
   deferred SO presets until multiple "moods" are actually needed.
 - No changes to `CombatResolver.cs`, `HealthState.cs`, or damage math — purely a visual layer
   downstream of already-resolved combat, same boundary the attack-and-hit-animations design established.
+- **(2026-08-09) No enemy-side particles** — `Assets/Prefabs/Enemy.prefab` no longer has a
+  `HitParticles` child, and its `GridVisualAnimator.hitParticles` field is unset (null). The
+  `hitParticles` field and the `hitParticles?.Play()` call in `GridVisualAnimator.PlayHitReaction()`
+  stay in the script since the player still uses them — the field is simply left unassigned on the
+  Enemy prefab, which is already null-tolerant by design (see script section above). Only
+  `Assets/Prefabs/Player.prefab` keeps the `HitParticles` child and its `HitSparkParticle.mat`
+  material reference.
 
 ## Testing
 
@@ -124,9 +139,10 @@ No new pure-math logic exists to Edit-Mode-test (unlike the hit-flash/shake curv
 testable pure functions in `PlayerMotionAnimator`) — this is a MonoBehaviour/ParticleSystem
 hookup, verified manually via MCP Play Mode observation:
 
-1. Player attacks an adjacent enemy: confirm a white spark burst appears at the enemy's position
-   at the moment of impact, alongside the existing flash/shake, fading within ~0.2–0.3s without looping.
-2. An enemy attacks the player: confirm the same burst appears on the player.
+1. ~~Player attacks an adjacent enemy: confirm a white spark burst appears at the enemy's
+   position~~ — no longer applicable; enemies have no `HitParticles` as of the 2026-08-09 update.
+2. An enemy attacks the player: confirm the burst appears on the player, alongside the existing
+   flash/shake, fading within ~0.2–0.3s without looping.
 3. Confirm the burst doesn't visually drag behind the entity on its next hop (validates
    `Simulation Space = World`) and doesn't idle-loop or replay on its own (validates
    `Play On Awake = false` + non-looping).
