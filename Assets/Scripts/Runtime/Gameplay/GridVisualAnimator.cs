@@ -36,6 +36,10 @@ namespace Jagara.Runtime.Gameplay
         [SerializeField] private float hitDuration = 0.33f;
         [SerializeField] private Color hitFlashColor = Color.white;
 
+        [Header("Death")]
+        [SerializeField] private int deathBlinkCount = 5;
+        [SerializeField] private float deathBlinkInterval = 0.06f;
+
         private Vector3 baseLocalPosition;
         private float spriteHeight;
         private MaterialPropertyBlock propertyBlock;
@@ -53,6 +57,12 @@ namespace Jagara.Runtime.Gameplay
         private bool isHit;
         private float hitProgress;
         private Coroutine hitCoroutine;
+
+        // Death state - once true, LateUpdate stops driving pose/flash
+        // entirely (see below); the corpse just blinks until destroyed.
+        private bool isDying;
+        private Action deathCompleteCallback;
+        private Coroutine deathCoroutine;
 
         private void Awake()
         {
@@ -127,6 +137,18 @@ namespace Jagara.Runtime.Gameplay
                 isHit = false;
                 ResetFlash();
             }
+
+            if (deathCoroutine != null)
+            {
+                StopCoroutine(deathCoroutine);
+                deathCoroutine = null;
+                isDying = false;
+                spriteRenderer.enabled = false;
+
+                Action callback = deathCompleteCallback;
+                deathCompleteCallback = null;
+                callback?.Invoke();
+            }
         }
 
         private void HandleMoveStarted(Vector2Int direction)
@@ -169,6 +191,31 @@ namespace Jagara.Runtime.Gameplay
             hitCoroutine = StartCoroutine(HitReactionRoutine());
         }
 
+        /// <summary>
+        /// Plays a blink-then-vanish death animation: toggles the sprite's
+        /// visibility on/off for deathBlinkCount cycles, then calls
+        /// onComplete - callers (EnemyController.Die) use this to know when
+        /// it's safe to actually destroy the GameObject. Cancels any
+        /// in-flight hit-reaction first, since a killing blow already fires
+        /// HealthState.OnHPChanged (and therefore PlayHitReaction) before
+        /// OnDeath calls this. Purely cosmetic beyond that callback - does
+        /// not touch TurnResolver or gate the turn in any way.
+        /// </summary>
+        public void PlayDeath(Action onComplete = null)
+        {
+            if (hitCoroutine != null)
+            {
+                StopCoroutine(hitCoroutine);
+                hitCoroutine = null;
+                isHit = false;
+                ResetFlash();
+            }
+
+            isDying = true;
+            deathCompleteCallback = onComplete;
+            deathCoroutine = StartCoroutine(DeathRoutine());
+        }
+
         private IEnumerator AttackRoutine()
         {
             isAttacking = true;
@@ -207,6 +254,23 @@ namespace Jagara.Runtime.Gameplay
             ResetFlash();
         }
 
+        private IEnumerator DeathRoutine()
+        {
+            int totalToggles = deathBlinkCount * 2;
+            for (int i = 0; i < totalToggles; i++)
+            {
+                spriteRenderer.enabled = !spriteRenderer.enabled;
+                yield return new WaitForSeconds(deathBlinkInterval);
+            }
+
+            spriteRenderer.enabled = false;
+            deathCoroutine = null;
+
+            Action callback = deathCompleteCallback;
+            deathCompleteCallback = null;
+            callback?.Invoke();
+        }
+
         /// <summary>
         /// Zeroes the shared MaterialPropertyBlock's flash amount without
         /// touching any other property another component (e.g. EntityOutline's
@@ -225,6 +289,11 @@ namespace Jagara.Runtime.Gameplay
         // already written this frame's MoveProgress before we sample it.
         private void LateUpdate()
         {
+            if (isDying)
+            {
+                return;
+            }
+
             Vector3 baseOffset;
             Vector2 scale;
 

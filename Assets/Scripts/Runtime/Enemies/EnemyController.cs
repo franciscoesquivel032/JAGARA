@@ -209,17 +209,27 @@ namespace Jagara.Runtime.Enemies
 
         /// <summary>
         /// Called by an attacker (e.g. PlayerController after a killing bump-attack)
-        /// once this enemy's HP reaches 0. Unregisters from the turn resolver so it
-        /// cannot act again, frees its tile immediately, then destroys the GameObject.
-        /// The explicit ReleaseCell matters because Destroy is deferred to the end of
-        /// the frame: relying on GridMover.OnDestroy alone would leave the corpse
-        /// blocking its tile for the remainder of the turn it died on.
+        /// once this enemy's HP reaches 0. Unregisters from the turn resolver and
+        /// frees its tile immediately - a dying enemy must stop acting and stop
+        /// blocking movement/attacks right away, exactly as before - but the
+        /// GameObject's destruction is now deferred until its death-blink animation
+        /// finishes (if a GridVisualAnimator is present), instead of destroying it
+        /// the same frame. Falls back to immediate Destroy when no visual animator
+        /// is present, matching every other animation fallback in this class.
         /// </summary>
         public void Die()
         {
             resolver.UnregisterActor(this);
             mover.ReleaseCell();
-            Destroy(gameObject);
+
+            if (visualAnimator != null)
+            {
+                visualAnimator.PlayDeath(() => Destroy(gameObject));
+            }
+            else
+            {
+                Destroy(gameObject);
+            }
         }
     }
 }
