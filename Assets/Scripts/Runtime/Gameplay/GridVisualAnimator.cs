@@ -7,11 +7,13 @@ namespace Jagara.Runtime.Gameplay
     /// <summary>
     /// Drives an entity's procedural animation on the Visual child: idle
     /// breathing bob while stationary, a hop with squash-stretch during the
-    /// grid tween, an attack lunge-and-return, and a hit-reaction
-    /// flash+shake overlay - plus flipX facing. Only touches the child's
-    /// localPosition/localScale and a shared MaterialPropertyBlock (for the
-    /// flash), so it never fights GridMover, which tweens the root. Math
-    /// lives in PlayerMotionAnimator (Edit Mode testable).
+    /// grid tween, an attack lunge-and-return, a hit-reaction flash+shake
+    /// overlay, and a death blink-then-vanish sequence - plus flipX facing.
+    /// Only touches the child's localPosition/localScale, a shared
+    /// MaterialPropertyBlock (for the flash), and the SpriteRenderer's
+    /// enabled state (for the death blink), so it never fights GridMover,
+    /// which tweens the root. Math lives in PlayerMotionAnimator (Edit Mode
+    /// testable).
     /// </summary>
     [RequireComponent(typeof(SpriteRenderer))]
     public class GridVisualAnimator : MonoBehaviour
@@ -203,6 +205,11 @@ namespace Jagara.Runtime.Gameplay
         /// </summary>
         public void PlayDeath(Action onComplete = null)
         {
+            if (isDying)
+            {
+                return;
+            }
+
             if (hitCoroutine != null)
             {
                 StopCoroutine(hitCoroutine);
@@ -212,6 +219,8 @@ namespace Jagara.Runtime.Gameplay
             }
 
             isDying = true;
+            transform.localPosition = baseLocalPosition;
+            transform.localScale = Vector3.one;
             deathCompleteCallback = onComplete;
             deathCoroutine = StartCoroutine(DeathRoutine());
         }
@@ -257,10 +266,12 @@ namespace Jagara.Runtime.Gameplay
         private IEnumerator DeathRoutine()
         {
             int totalToggles = deathBlinkCount * 2;
+            var blinkWait = new WaitForSeconds(deathBlinkInterval);
+
             for (int i = 0; i < totalToggles; i++)
             {
                 spriteRenderer.enabled = !spriteRenderer.enabled;
-                yield return new WaitForSeconds(deathBlinkInterval);
+                yield return blinkWait;
             }
 
             spriteRenderer.enabled = false;

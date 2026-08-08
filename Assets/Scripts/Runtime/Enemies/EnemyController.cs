@@ -198,9 +198,10 @@ namespace Jagara.Runtime.Enemies
         /// Plays this enemy's hit-reaction flash+shake whenever the player
         /// damages it (HealthState.OnHPChanged only fires on a genuine hit -
         /// see HealthState.TakeDamage). Purely cosmetic. On a killing blow,
-        /// this coroutine starts but is immediately cut short by Die()
-        /// destroying the GameObject in the same frame - a known, accepted
-        /// gap (no death animation; see the design spec).
+        /// this coroutine starts but is immediately cancelled by
+        /// GridVisualAnimator.PlayDeath (called from Die()) before it ever
+        /// renders a frame, since the death-blink animation takes over the
+        /// sprite's visibility from that point on.
         /// </summary>
         private void HandleHPChanged(int current, int max)
         {
